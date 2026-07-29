@@ -61,6 +61,20 @@ run.
 
 ### Where the sink A / sink B boundary sits
 
+**SUPERSEDED at PB-T2 by [ADR-0003](0003-workload-sinks-and-configurations.md),
+section 1, dated 2026-07-29 and decided before the first control run produced a
+number. This section is retained unedited because an ADR is a record, not a draft.
+Only this section is superseded; INV-P1, INV-P2, and the frozen experiment
+constants below remain authoritative.**
+
+The short version of what changed: the sinks are Kafka topics, not local stores.
+Placing them outside Kafka put the measured effect where a transaction cannot
+reach it, which made duplication structurally guaranteed under both
+configurations, so C1 would have failed for a reason unrelated to delivery
+semantics and C2 could have distinguished nothing. The A-before-B ordering below
+is retained; the predicted double charge is not. ADR-0003 carries the full
+reasoning.
+
 The fault type `consumer_sigkill_between_sinks` has no meaning without this, so it is
 fixed here: each consumed side effect is written to two sinks in a fixed order, sink A
 being the effect sink (the simulated external system, where the charge lands) and sink

@@ -1,0 +1,12 @@
+# Seeded-broken pre-commit config. The `name` value below is a plain unquoted
+# YAML scalar that contains the two characters colon-space inside it, which is a
+# YAML mapping-value parse error. `pre-commit validate-config` on this file must
+# exit non-zero, driving the hygiene gate red. Do not "fix" this file: a gate
+# nobody has seen fail is not a gate.
+repos:
+  - repo: local
+    hooks:
+      - id: broken-hook
+        name: this hook is intentionally broken: the colon-space here breaks YAML
+        entry: echo
+        language: system

@@ -1,0 +1,74 @@
+# Single-node Kafka in KRaft mode: the whole infrastructure this project needs.
+#
+# CLAIMS.md fixes the scope limit this file implements. A single node cannot
+# demonstrate ISR leader failover, so broker faults in the matrix are stop and
+# start outages rather than failover, and that limit is stated in CLAIMS.md, in
+# ADR-0003, and in the README rather than being discovered from this file.
+#
+# The three replication settings below are not decoration. On a single node the
+# internal offsets and transaction-state topics default to a replication factor
+# the cluster cannot satisfy, and a transactional producer then fails to
+# initialise on first boot with an error that names neither the topic nor the
+# cause. Pinning all three is the documented fix and it is why a transactional
+# producer works here on a fresh checkout.
+#
+# Two listeners, because the harness runs on the host rather than in a container.
+# PLAINTEXT is the in-network address, HOST is what a host process dials. The
+# published port and the advertised HOST port are the same variable, so changing
+# it moves both together and cannot leave the broker advertising an address
+# nothing can reach.
+#
+# No endpoint literal reaches source: the harness reads its bootstrap address
+# from PB_BROKER_BOOTSTRAP_SERVERS through Settings (INV-1). The value below is a
+# compose service name and a local port, which is neither a secret nor an
+# account-specific address.
+
+services:
+  kafka:
+    image: apache/kafka:3.9.1
+    container_name: proofbench-kafka
+    hostname: kafka
+    ports:
+      - "${PB_BROKER_HOST_PORT:-29092}:${PB_BROKER_HOST_PORT:-29092}"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,HOST://0.0.0.0:${PB_BROKER_HOST_PORT:-29092}
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,HOST://127.0.0.1:${PB_BROKER_HOST_PORT:-29092}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Required on a single node. Without these a transactional producer fails
+      # to initialise on first boot: see the header note.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+      # A run provisions its own topics explicitly (delete then create, scoped to
+      # the three names that run uses), so auto-creation is off. With it on, a
+      # typo in a topic name would silently produce into a fresh empty topic and
+      # the run would report total loss for an apparatus reason.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+
+      # A single node has no other member to wait for, so an empty rebalance
+      # delay removes a fixed several-second pause from every consumer start.
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+
+    # broker-up waits on this rather than sleeping. The harness dials the broker
+    # the instant the target returns, so "ready" has to mean the broker answers
+    # an API request, not that the container is running.
+    healthcheck:
+      test: ["CMD", "/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 5s
+      timeout: 10s
+      retries: 24
+      start_period: 10s
+
+# There is deliberately no named volume. The log lives in the container's
+# writable layer, which survives the stop and start that PB-T3 injects as
+# broker_stop_start, and which `make broker-down` removes as a deliberate reset.
+# A named volume would add a first-boot ownership problem (a fresh volume is
+# root-owned, the image runs as a non-root user) in exchange for persistence
+# across a teardown that is meant to be a teardown.

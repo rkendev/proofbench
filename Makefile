@@ -8,8 +8,14 @@ VENV := .venv
 BIN := $(VENV)/bin
 export PYTHONPATH := src
 
+# Every compose invocation is pinned to its own project name. This box runs
+# twenty-odd unrelated containers, and an unscoped `down -v` reaches whatever
+# compose decides the project is, which is a data-loss bug waiting for a busy
+# afternoon. With -p the blast radius is exactly this file's services.
+COMPOSE := docker compose -p proofbench
+
 .PHONY: bootstrap hooks hygiene verify-versions lint type-check test schedule \
-	broker-up run-matrix
+	broker-up broker-down broker-status run-matrix
 
 # Idempotent: safe to re-run. Creates the venv only if absent, asserts it is
 # Python 3.12, installs pinned deps, wires the pre-commit git hook where the
@@ -66,9 +72,34 @@ test:
 schedule:
 	$(BIN)/python scripts/write_run_schedule.py
 
-# Deferred to a later prompt. These exit non-zero rather than printing and
-# succeeding, so a stub can never be chained into something that then reports
-# success. PB-T1 deliberately boots no broker and measures nothing.
-broker-up run-matrix:
-	@echo "$@: not implemented until a later prompt (PB-T1 boots no broker and measures nothing)."
+# Bring up the single-node KRaft broker and block until it answers an API
+# request. `--wait` consumes the compose healthcheck, so there is no sleep loop
+# here and "the target returned" means "the broker is dialable".
+broker-up:
+	$(COMPOSE) up -d --wait kafka
+	@echo "broker ready. Export PB_BROKER_BOOTSTRAP_SERVERS=127.0.0.1:$${PB_BROKER_HOST_PORT:-29092} to reach it."
+
+# Remove the broker and its state. This is a deliberate reset, not the outage
+# PB-T3 injects: broker_stop_start uses compose stop and start, which preserves
+# the log.
+broker-down:
+	$(COMPOSE) down -v --remove-orphans
+
+# Ready means the broker answers, not that the container is up. Exits non-zero
+# when it does not, so this can gate something rather than merely inform.
+broker-status:
+	@$(COMPOSE) ps kafka
+	@if $(COMPOSE) exec -T kafka /opt/kafka/bin/kafka-broker-api-versions.sh \
+		--bootstrap-server localhost:9092 >/dev/null 2>&1; then \
+		echo "broker-status: ready"; \
+	else \
+		echo "broker-status: NOT ready" >&2; \
+		exit 1; \
+	fi
+
+# Deferred to PB-T3, which brings the fault injector, the 20 kill runs, and the
+# evidence matrix. Exits non-zero rather than printing and succeeding, so a stub
+# can never be chained into something that then reports success.
+run-matrix:
+	@echo "$@: not implemented until PB-T3 (PB-T2 injects no fault and runs no kill run)."
 	@exit 2

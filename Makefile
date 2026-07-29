@@ -15,7 +15,7 @@ export PYTHONPATH := src
 COMPOSE := docker compose -p proofbench
 
 .PHONY: bootstrap hooks hygiene verify-versions lint type-check test schedule \
-	broker-up broker-down broker-status run-matrix
+	trace broker-up broker-down broker-status run-matrix
 
 # Idempotent: safe to re-run. Creates the venv only if absent, asserts it is
 # Python 3.12, installs pinned deps, wires the pre-commit git hook where the
@@ -71,6 +71,14 @@ test:
 # it to prove the artifact is reproducible, not to change it.
 schedule:
 	$(BIN)/python scripts/write_run_schedule.py
+
+# Regenerate the committed agent tool-call trace from the master seed. A no-op on
+# a clean tree, for the same reason `schedule` is: the trace is frozen and
+# tests/unit/test_trace_frozen.py fails if regenerating does not reproduce the
+# committed file byte for byte. Run it to prove the artifact is reproducible, not
+# to change it.
+trace:
+	$(BIN)/python scripts/write_agent_trace.py
 
 # Bring up the single-node KRaft broker and block until it answers an API
 # request. `--wait` consumes the compose healthcheck, so there is no sleep loop

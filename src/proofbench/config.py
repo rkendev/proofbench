@@ -64,6 +64,13 @@ class Settings(BaseSettings):
     # byte-equality gate; both resolve it relative to the repository root.
     schedule_path: Path = Path("docs/run_schedule.json")
 
+    # The committed agent tool-call trace, frozen the same way and for the same
+    # reason. A run reads it rather than rebuilding it, so what a run consumed is
+    # the artifact a reader can inspect (ADR-0003). Like schedule_path this is a
+    # property of the checkout rather than a tunable, and it does not enter the
+    # schedule artifact, so it sits outside the byte-equality gate.
+    trace_path: Path = Path("docs/agent_trace.json")
+
     # Log verbosity for the structured logger.
     log_level: str = "INFO"
 

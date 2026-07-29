@@ -1,0 +1,2003 @@
+{
+  "master_seed": 20260728,
+  "provenance": "The saga shape models an LLM agent's tool-call sequence. It was authored deterministically from the master seed, not sampled from a live model. Regenerating it from that seed reproduces the committed file byte for byte. See ADR-0003.",
+  "schema_version": 1,
+  "step_names": [
+    "create_ticket",
+    "charge_card",
+    "send_confirmation"
+  ],
+  "tool_calls": {
+    "charge_card": [
+      {
+        "arguments": {
+          "amount_cents": 67205,
+          "currency": "NOK",
+          "descriptor": "setup_fee",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-000",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 171549,
+          "currency": "USD",
+          "descriptor": "setup_fee",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-001",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 63296,
+          "currency": "GBP",
+          "descriptor": "setup_fee",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-002",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 149192,
+          "currency": "DKK",
+          "descriptor": "proration",
+          "processor": "reserve"
+        },
+        "call_id": "charge_card-003",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 127243,
+          "currency": "NOK",
+          "descriptor": "subscription",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-004",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 129332,
+          "currency": "GBP",
+          "descriptor": "overage",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-005",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 202884,
+          "currency": "USD",
+          "descriptor": "overage",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-006",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 246091,
+          "currency": "CHF",
+          "descriptor": "subscription",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-007",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 150101,
+          "currency": "GBP",
+          "descriptor": "adjustment",
+          "processor": "reserve"
+        },
+        "call_id": "charge_card-008",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 117885,
+          "currency": "EUR",
+          "descriptor": "setup_fee",
+          "processor": "reserve"
+        },
+        "call_id": "charge_card-009",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 136882,
+          "currency": "DKK",
+          "descriptor": "subscription",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-010",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 126045,
+          "currency": "USD",
+          "descriptor": "overage",
+          "processor": "regional_uk"
+        },
+        "call_id": "charge_card-011",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 144742,
+          "currency": "GBP",
+          "descriptor": "subscription",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-012",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 86486,
+          "currency": "EUR",
+          "descriptor": "one_off",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-013",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 163589,
+          "currency": "SEK",
+          "descriptor": "renewal",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-014",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 49022,
+          "currency": "SEK",
+          "descriptor": "subscription",
+          "processor": "regional_uk"
+        },
+        "call_id": "charge_card-015",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 206980,
+          "currency": "PLN",
+          "descriptor": "reactivation",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-016",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 31413,
+          "currency": "NOK",
+          "descriptor": "renewal",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-017",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 151370,
+          "currency": "USD",
+          "descriptor": "adjustment",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-018",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 46657,
+          "currency": "NOK",
+          "descriptor": "reactivation",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-019",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 245462,
+          "currency": "GBP",
+          "descriptor": "setup_fee",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-020",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 13437,
+          "currency": "DKK",
+          "descriptor": "one_off",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-021",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 139828,
+          "currency": "PLN",
+          "descriptor": "subscription",
+          "processor": "reserve"
+        },
+        "call_id": "charge_card-022",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 100283,
+          "currency": "EUR",
+          "descriptor": "subscription",
+          "processor": "regional_uk"
+        },
+        "call_id": "charge_card-023",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 234399,
+          "currency": "CHF",
+          "descriptor": "proration",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-024",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 185015,
+          "currency": "DKK",
+          "descriptor": "reactivation",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-025",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 163220,
+          "currency": "DKK",
+          "descriptor": "adjustment",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-026",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 137483,
+          "currency": "DKK",
+          "descriptor": "renewal",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-027",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 153317,
+          "currency": "USD",
+          "descriptor": "one_off",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-028",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 55723,
+          "currency": "GBP",
+          "descriptor": "renewal",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-029",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 107864,
+          "currency": "DKK",
+          "descriptor": "overage",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-030",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 51275,
+          "currency": "EUR",
+          "descriptor": "adjustment",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-031",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 77314,
+          "currency": "USD",
+          "descriptor": "setup_fee",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-032",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 180829,
+          "currency": "PLN",
+          "descriptor": "overage",
+          "processor": "regional_uk"
+        },
+        "call_id": "charge_card-033",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 175477,
+          "currency": "NOK",
+          "descriptor": "subscription",
+          "processor": "regional_uk"
+        },
+        "call_id": "charge_card-034",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 109555,
+          "currency": "CHF",
+          "descriptor": "reactivation",
+          "processor": "reserve"
+        },
+        "call_id": "charge_card-035",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 65377,
+          "currency": "NOK",
+          "descriptor": "subscription",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-036",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 2241,
+          "currency": "DKK",
+          "descriptor": "proration",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-037",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 174997,
+          "currency": "DKK",
+          "descriptor": "adjustment",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-038",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 107263,
+          "currency": "PLN",
+          "descriptor": "reactivation",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-039",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 200615,
+          "currency": "USD",
+          "descriptor": "subscription",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-040",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 160032,
+          "currency": "PLN",
+          "descriptor": "renewal",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-041",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 132127,
+          "currency": "EUR",
+          "descriptor": "renewal",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-042",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 8289,
+          "currency": "USD",
+          "descriptor": "renewal",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-043",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 113290,
+          "currency": "NOK",
+          "descriptor": "overage",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-044",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 138970,
+          "currency": "USD",
+          "descriptor": "renewal",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-045",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 44426,
+          "currency": "DKK",
+          "descriptor": "adjustment",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-046",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 129053,
+          "currency": "SEK",
+          "descriptor": "one_off",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-047",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 163976,
+          "currency": "NOK",
+          "descriptor": "overage",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-048",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 149133,
+          "currency": "DKK",
+          "descriptor": "adjustment",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-049",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 50720,
+          "currency": "EUR",
+          "descriptor": "overage",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-050",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 177030,
+          "currency": "USD",
+          "descriptor": "proration",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-051",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 51484,
+          "currency": "USD",
+          "descriptor": "overage",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-052",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 240058,
+          "currency": "GBP",
+          "descriptor": "adjustment",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-053",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 192830,
+          "currency": "NOK",
+          "descriptor": "one_off",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-054",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 114846,
+          "currency": "DKK",
+          "descriptor": "reactivation",
+          "processor": "primary"
+        },
+        "call_id": "charge_card-055",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 3882,
+          "currency": "GBP",
+          "descriptor": "one_off",
+          "processor": "regional_eu"
+        },
+        "call_id": "charge_card-056",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 176908,
+          "currency": "NOK",
+          "descriptor": "adjustment",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-057",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 202238,
+          "currency": "USD",
+          "descriptor": "setup_fee",
+          "processor": "manual_review"
+        },
+        "call_id": "charge_card-058",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 121331,
+          "currency": "USD",
+          "descriptor": "one_off",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-059",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 159857,
+          "currency": "PLN",
+          "descriptor": "setup_fee",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-060",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 189256,
+          "currency": "PLN",
+          "descriptor": "adjustment",
+          "processor": "legacy"
+        },
+        "call_id": "charge_card-061",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 235203,
+          "currency": "GBP",
+          "descriptor": "subscription",
+          "processor": "batch"
+        },
+        "call_id": "charge_card-062",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      },
+      {
+        "arguments": {
+          "amount_cents": 154633,
+          "currency": "GBP",
+          "descriptor": "reactivation",
+          "processor": "fallback"
+        },
+        "call_id": "charge_card-063",
+        "step_name": "charge_card",
+        "tool": "charge_card"
+      }
+    ],
+    "create_ticket": [
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "scheduled",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-000",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "upgrade_request",
+          "priority": "informational",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-001",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "informational",
+          "queue": "retention"
+        },
+        "call_id": "create_ticket-002",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "high",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-003",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "deferred",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-004",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "high",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-005",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "scheduled",
+          "queue": "billing"
+        },
+        "call_id": "create_ticket-006",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "urgent",
+          "queue": "billing"
+        },
+        "call_id": "create_ticket-007",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "upgrade_request",
+          "priority": "low",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-008",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "urgent",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-009",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "invoice_query",
+          "priority": "high",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-010",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "normal",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-011",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "upgrade_request",
+          "priority": "high",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-012",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "deferred",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-013",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "low",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-014",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "invoice_query",
+          "priority": "informational",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-015",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "invoice_query",
+          "priority": "informational",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-016",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "upgrade_request",
+          "priority": "normal",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-017",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "upgrade_request",
+          "priority": "normal",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-018",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "scheduled",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-019",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "high",
+          "queue": "billing"
+        },
+        "call_id": "create_ticket-020",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "low",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-021",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "deferred",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-022",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "blocking",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-023",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "urgent",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-024",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "normal",
+          "queue": "billing"
+        },
+        "call_id": "create_ticket-025",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "normal",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-026",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "low",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-027",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "low",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-028",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "high",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-029",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "low",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-030",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "blocking",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-031",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "normal",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-032",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "urgent",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-033",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "invoice_query",
+          "priority": "informational",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-034",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "normal",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-035",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "high",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-036",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "blocking",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-037",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "low",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-038",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "blocking",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-039",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "urgent",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-040",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "blocking",
+          "queue": "retention"
+        },
+        "call_id": "create_ticket-041",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "low",
+          "queue": "retention"
+        },
+        "call_id": "create_ticket-042",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "high",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-043",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "normal",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-044",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "deferred",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-045",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "high",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-046",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "low",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-047",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "low",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-048",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "normal",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-049",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "high",
+          "queue": "technical"
+        },
+        "call_id": "create_ticket-050",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "low",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-051",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "deferred",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-052",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "plan_change",
+          "priority": "urgent",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-053",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "address_update",
+          "priority": "high",
+          "queue": "onboarding"
+        },
+        "call_id": "create_ticket-054",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "access_issue",
+          "priority": "urgent",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-055",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "blocking",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-056",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "blocking",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-057",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "refund_request",
+          "priority": "urgent",
+          "queue": "support"
+        },
+        "call_id": "create_ticket-058",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "urgent",
+          "queue": "compliance"
+        },
+        "call_id": "create_ticket-059",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "urgent",
+          "queue": "fraud_review"
+        },
+        "call_id": "create_ticket-060",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "deferred",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-061",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "cancellation",
+          "priority": "blocking",
+          "queue": "billing"
+        },
+        "call_id": "create_ticket-062",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      },
+      {
+        "arguments": {
+          "category": "payment_failed",
+          "priority": "scheduled",
+          "queue": "escalations"
+        },
+        "call_id": "create_ticket-063",
+        "step_name": "create_ticket",
+        "tool": "create_ticket"
+      }
+    ],
+    "send_confirmation": [
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "nl_NL",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-000",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "de_DE",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-001",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "fr_FR",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-002",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "nl_NL",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-003",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "es_ES",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-004",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "pl_PL",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-005",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "nl_NL",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-006",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "it_IT",
+          "template": "ticket_opened"
+        },
+        "call_id": "send_confirmation-007",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "nl_NL",
+          "template": "charge_receipt"
+        },
+        "call_id": "send_confirmation-008",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "nl_NL",
+          "template": "charge_receipt"
+        },
+        "call_id": "send_confirmation-009",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "es_ES",
+          "template": "charge_receipt"
+        },
+        "call_id": "send_confirmation-010",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "en_GB",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-011",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "es_ES",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-012",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-013",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "de_DE",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-014",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "en_GB",
+          "template": "ticket_opened"
+        },
+        "call_id": "send_confirmation-015",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "it_IT",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-016",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-017",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "sv_SE",
+          "template": "ticket_opened"
+        },
+        "call_id": "send_confirmation-018",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "fr_FR",
+          "template": "ticket_opened"
+        },
+        "call_id": "send_confirmation-019",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "de_DE",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-020",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "fr_FR",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-021",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "sv_SE",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-022",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "fr_FR",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-023",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "es_ES",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-024",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "pl_PL",
+          "template": "charge_receipt"
+        },
+        "call_id": "send_confirmation-025",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "nl_NL",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-026",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "fr_FR",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-027",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "it_IT",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-028",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "sv_SE",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-029",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "fr_FR",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-030",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "nl_NL",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-031",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "de_DE",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-032",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "it_IT",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-033",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "nl_NL",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-034",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-035",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "pl_PL",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-036",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-037",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "pl_PL",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-038",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "es_ES",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-039",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "pl_PL",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-040",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "fr_FR",
+          "template": "action_required"
+        },
+        "call_id": "send_confirmation-041",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "push",
+          "locale": "nl_NL",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-042",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "pl_PL",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-043",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "en_GB",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-044",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "es_ES",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-045",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "de_DE",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-046",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "en_GB",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-047",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "es_ES",
+          "template": "reminder"
+        },
+        "call_id": "send_confirmation-048",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "en_GB",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-049",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "sv_SE",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-050",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "voice",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-051",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "webhook",
+          "locale": "it_IT",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-052",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "sv_SE",
+          "template": "welcome_back"
+        },
+        "call_id": "send_confirmation-053",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "en_GB",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-054",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "it_IT",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-055",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "email",
+          "locale": "es_ES",
+          "template": "summary_digest"
+        },
+        "call_id": "send_confirmation-056",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "nl_NL",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-057",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "nl_NL",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-058",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "de_DE",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-059",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "chat",
+          "locale": "sv_SE",
+          "template": "charge_receipt"
+        },
+        "call_id": "send_confirmation-060",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "sms",
+          "locale": "fr_FR",
+          "template": "refund_issued"
+        },
+        "call_id": "send_confirmation-061",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "postal",
+          "locale": "fr_FR",
+          "template": "ticket_opened"
+        },
+        "call_id": "send_confirmation-062",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      },
+      {
+        "arguments": {
+          "channel": "in_app",
+          "locale": "es_ES",
+          "template": "plan_updated"
+        },
+        "call_id": "send_confirmation-063",
+        "step_name": "send_confirmation",
+        "tool": "send_confirmation"
+      }
+    ]
+  },
+  "variants_per_step": 64
+}

@@ -1,0 +1,8 @@
+# Single source of truth for DEV and TOOLING pins (INV-5).
+# These exact versions are mirrored in .pre-commit-config.yaml `rev:` fields;
+# scripts/verify_versions.py fails the build if any pin disagrees across files.
+# There is deliberately no rival dev-dependency list in pyproject.toml.
+ruff==0.15.22
+mypy==1.15.0
+pytest==8.3.4
+pre-commit==4.0.1

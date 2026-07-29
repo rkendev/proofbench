@@ -1,0 +1,32 @@
+# Build-hygiene hooks. This config MUST parse and install on a clean checkout;
+# scripts/verify-precommit.sh validates and runs it, and
+# tests/hygiene/test_precommit_gate.py proves a broken config fails red.
+# Tool revs are kept identical to requirements-dev.txt; scripts/verify_versions.py
+# fails the build on any disagreement (INV-5).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.22
+    hooks:
+      # `ruff-check`, not the `ruff` alias: the alias still works at this rev but
+      # is reported as legacy, and a deprecated id is a future breakage.
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        pass_filenames: false
+        additional_dependencies:
+          - pydantic==2.10.6
+          - pydantic-settings==2.7.1
+
+  - repo: local
+    hooks:
+      - id: verify-versions
+        name: verify dependency version consistency (INV-5)
+        entry: python3 scripts/verify_versions.py
+        language: system
+        pass_filenames: false
+        always_run: true

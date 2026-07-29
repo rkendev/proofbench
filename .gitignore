@@ -1,0 +1,15 @@
+# Virtual environment
+.venv/
+
+# Local environment and secrets (never committed; INV-1)
+.env
+
+# Harness run output (produced by a later prompt, never committed)
+runs/
+
+# Python caches and tool state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/

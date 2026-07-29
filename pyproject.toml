@@ -1,0 +1,40 @@
+# Tool configuration only. There is deliberately NO [project] dependency table
+# and no dev-extras here: runtime pins live in requirements.txt and dev/tooling
+# pins in requirements-dev.txt, so this file is not a rival pin list (INV-5).
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+files = ["src"]
+# Resolve first-party imports (proofbench) when type-checking the scripts/
+# helpers alongside src, without adding scripts to the checked file set wholesale.
+mypy_path = "src"
+
+# The Kafka client is deliberately not a dependency yet (PB-T1 boots no broker).
+# It will be imported lazily inside the run path, so declare it now as a stubless
+# third-party module: strict mypy then neither errors on the missing import nor
+# forces an inline ignore into the run path when the client arrives.
+[[tool.mypy.overrides]]
+module = ["confluent_kafka.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+[tool.pytest.ini_options]
+# scripts/ carries operator tooling: importable by tests, deliberately not part
+# of the package.
+pythonpath = ["src", "scripts"]
+testpaths = ["tests"]
+addopts = "-ra"

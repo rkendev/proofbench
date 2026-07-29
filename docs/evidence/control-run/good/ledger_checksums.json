@@ -1,0 +1,10 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "note": "SHA-256 of the full ledger files, which are large and live under the git-ignored runs/ directory. The expected ledger is reproducible from the run seed and the committed trace, so anyone can rebuild it and check its digest. The observed ledgers are not reproducible, so their digests are what a later reader can hold this run to.",
+  "records_per_ledger": 600,
+  "sha256": {
+    "expected_ledger.json": "7a2200586d80d0012b93dc59a9794f419e130150f0c549f2eccb8d57d6ff01f8",
+    "observed_sink_a.json": "d5fe46c26f0ff154c59a3e749d9d3aa439af2f6576549dc3f8e043757accfdae",
+    "observed_sink_b.json": "8ead589230ff9a49031a260c4e9eda7a79744e0944836438b011f1e363839ea4"
+  }
+}

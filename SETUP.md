@@ -9,8 +9,14 @@ reach green with no manual step. The time below is measured, not asserted.
 - `git` and network access. The first hygiene-gate run clones the pre-commit hook
   repositories and builds their environments; after that they are cached.
 
-Nothing else. There is no broker, no container runtime, and no cloud account in this
-setup, because PB-T1 boots no broker and measures nothing.
+Nothing else is needed to reach green. The whole test suite runs offline: the
+integration tests skip with a named reason when no broker is reachable, which is what
+keeps CI booting nothing.
+
+Docker is needed only to run the harness against a live broker. `make broker-up`
+brings up single-node KRaft from `docker-compose.yml` and prints the address to
+export; `make broker-status` reports ready only when the broker answers an API
+request. No cloud account is involved at any point.
 
 ## Stopwatch checklist
 
@@ -80,9 +86,33 @@ git diff --exit-code docs/run_schedule.json      # must be empty
 holds exactly 20 kill runs plus one control, that the fault menu is distributed 7 / 7
 / 6, and that every fault point is strictly mid-saga.
 
+## Running the harness against a live broker
+
+Not needed to reach green, and not run by CI. Needs Docker.
+
+```
+make broker-up        # single-node KRaft; blocks until the broker answers, then prints the address
+export PB_BROKER_BOOTSTRAP_SERVERS=127.0.0.1:29092
+make broker-status    # ready means the broker answered an API request, not that a container is up
+make control-run      # the no-fault control, under both configurations
+make broker-down      # deliberate reset: removes the container and its log
+```
+
+`make control-run` takes about 17 seconds on the build host: roughly 9 for the good
+configuration, which commits 200 transactions, and 2 for the baseline, which commits
+none. The difference is the transactional round trips and is expected.
+
+With the broker up and the address exported, `make test` also runs the integration
+suite instead of skipping it, which takes it from about 1.5 seconds to about 23.
+
+On a first boot against a fresh broker the client logs two warnings while acquiring a
+transactional producer id, `Not coordinator` and `Coordinator load in progress`, each
+followed by `retrying`. That is the transaction coordinator still starting up. The
+client rides it out on its own and the run succeeds; no action is needed.
+
 ## Targets that are deliberately not implemented yet
 
-`make broker-up` and `make run-matrix` print a deferral note and exit non-zero. They
-are named here because they are planned, not because they exist. They exit non-zero
+`make run-matrix` prints a deferral note and exits non-zero. The fault injector, the
+20 kill runs, and the evidence matrix are the next piece of work. It exits non-zero
 rather than printing and succeeding so that a stub can never be chained into something
 that then reports success.

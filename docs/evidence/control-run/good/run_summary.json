@@ -1,0 +1,39 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "configuration": "good",
+  "expected_records": 600,
+  "fault_injected": false,
+  "fault_type": "none",
+  "is_clean": true,
+  "recovery": {
+    "aborts": 0,
+    "history": [],
+    "max_reinits": 3,
+    "producer_reinits": 0,
+    "retries": 0
+  },
+  "run_id": 0,
+  "sinks": [
+    {
+      "duplicated": 0,
+      "is_clean": true,
+      "lost": 0,
+      "records_sent": 600,
+      "records_visible": 600,
+      "sink": "sink_a",
+      "topic": "proofbench.r00.good.sink_a"
+    },
+    {
+      "duplicated": 0,
+      "is_clean": true,
+      "lost": 0,
+      "records_sent": 600,
+      "records_visible": 600,
+      "sink": "sink_b",
+      "topic": "proofbench.r00.good.sink_b"
+    }
+  ],
+  "status": "clean",
+  "transactions_aborted": 0,
+  "transactions_committed": 200
+}

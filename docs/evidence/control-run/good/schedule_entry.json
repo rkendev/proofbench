@@ -1,0 +1,10 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "control": true,
+  "fault_point": null,
+  "fault_type": "none",
+  "run_id": 0,
+  "sagas": 200,
+  "seed": "941fd94fa5c62dd8",
+  "steps_per_saga": 3
+}

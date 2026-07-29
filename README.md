@@ -1,5 +1,7 @@
 # ProofBench
 
+[![ci](https://github.com/rkendev/proofbench/actions/workflows/ci.yml/badge.svg)](https://github.com/rkendev/proofbench/actions/workflows/ci.yml)
+
 A kill-test harness that measures what Kafka delivery configuration actually does
 under injected failure.
 

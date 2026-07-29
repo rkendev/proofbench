@@ -15,7 +15,7 @@ export PYTHONPATH := src
 COMPOSE := docker compose -p proofbench
 
 .PHONY: bootstrap hooks hygiene verify-versions lint type-check test schedule \
-	trace broker-up broker-down broker-status run-matrix
+	trace broker-up broker-down broker-status control-run run-matrix
 
 # Idempotent: safe to re-run. Creates the venv only if absent, asserts it is
 # Python 3.12, installs pinned deps, wires the pre-commit git hook where the
@@ -104,6 +104,17 @@ broker-status:
 		echo "broker-status: NOT ready" >&2; \
 		exit 1; \
 	fi
+
+# The no-fault control run, under both configurations. An apparatus check and
+# never a claim result: it shows the harness reports zero when nothing was
+# killed. If it reports a non-zero count that is a harness defect and it blocks
+# the matrix (ADR-0002, ADR-0003). Needs a broker, so run broker-up first.
+#
+# Deliberately not retried on failure. A retry-until-clean loop on the apparatus
+# check is exactly the habit this project exists to disprove.
+control-run:
+	$(BIN)/python scripts/run_one.py --config good
+	$(BIN)/python scripts/run_one.py --config baseline
 
 # Deferred to PB-T3, which brings the fault injector, the 20 kill runs, and the
 # evidence matrix. Exits non-zero rather than printing and succeeding, so a stub

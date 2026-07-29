@@ -30,9 +30,10 @@ the difference CLAIMS.md names.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from proofbench.config import Settings, repo_root
 from proofbench.core.configs import RunConfiguration, build_both, build_configuration
@@ -233,6 +234,48 @@ def ingest(configuration: RunConfiguration, sagas: tuple[Saga, ...]) -> int:
 # --------------------------------------------------------------------------
 
 
+class SinkWriter(Protocol):
+    """What ``write_saga_to_sinks`` needs, so the ordering is testable offline.
+
+    Structural rather than the concrete ``_Sender``, because the property below
+    is the frozen sink ordering, and a test that needed a broker to check it
+    would be a test nobody runs.
+    """
+
+    def produce(self, topic: str, key: str, value: bytes) -> None: ...
+
+    def flush(self) -> None: ...
+
+
+def write_saga_to_sinks(
+    writer: SinkWriter, sinks: tuple[str, str], records: Sequence[tuple[str, bytes]]
+) -> None:
+    """Write one saga's side effects to sink A, then to sink B. Never the reverse.
+
+    The frozen ordering, fixed in ADR-0002 and retained by ADR-0003: sink A is
+    durable before sink B is attempted. It is a function rather than a loop
+    inlined into ``process`` for one reason. On a run with no fault the ordering
+    is unobservable, because both sinks end up holding everything either way, so
+    nothing in the control run can catch it being reversed. PB-T3's
+    consumer_sigkill_between_sinks depends on it entirely: the kill has to leave A
+    present and B absent, and with the order reversed that fault would produce the
+    mirror image of the case CLAIMS.md names.
+
+    So the ordering is pinned here, by a unit test with a recording writer, rather
+    than left to a comment and an integration run that cannot see it.
+
+    The flush between the two sinks is what makes the ordering real rather than
+    nominal. Without it both sets of records would sit in one producer queue and
+    reach the broker together, and "A before B" would describe the order of two
+    function calls rather than the order of two writes.
+    """
+    first, second = sinks
+    for topic in (first, second):
+        for key, value in records:
+            writer.produce(topic, key, value)
+        writer.flush()
+
+
 def process(
     configuration: RunConfiguration,
     settings: Settings,
@@ -293,11 +336,9 @@ def process(
             if transactional:
                 sender.producer.begin_transaction()
             # Sink A is durable before sink B is attempted. One path, no branch.
-            for topic in (sink_a, sink_b):
-                for key, value in buffered:
-                    sender.produce(topic, key, value)
-                    per_sink[topic] += 1
-                sender.flush()
+            write_saga_to_sinks(sender, (sink_a, sink_b), buffered)
+            per_sink[sink_a] += len(buffered)
+            per_sink[sink_b] += len(buffered)
             if transactional:
                 sender.producer.send_offsets_to_transaction(
                     [last_position], consumer.consumer_group_metadata(), _TXN_TIMEOUT_S

@@ -1,0 +1,73 @@
+# Continuous integration (ADR-0008 in the sibling repository this scaffold is
+# ported from; ADR-0001 and ADR-0002 here).
+#
+# One job, running the whole offline chain. Every step invokes a repository make
+# target, so what CI runs and what an operator runs cannot drift apart.
+#
+# Zero secrets, zero spend, no deploy. Nothing here calls a cloud provider, boots a
+# broker, builds an image, or cuts a release: PB-T1 measures nothing, and CI is not
+# where that changes.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Weekly drift run, Tuesdays 07:23 UTC. A finished repository gets no pushes,
+    # and a dormant one is where toolchain and dependency drift accumulates unseen.
+    # Off the hour on purpose, because jobs scheduled on the hour queue behind
+    # everyone else's. Note that GitHub disables a schedule after roughly 60 days
+    # of repository inactivity, which is the state this run exists to cover; the
+    # manual trigger below is how a quiet workflow is re-run and re-enabled.
+    - cron: "23 7 * * 2"
+  workflow_dispatch:
+
+# No secret, no cloud credential, no write scope. The only token in play is the
+# default GITHUB_TOKEN, read-only.
+permissions:
+  contents: read
+
+# A superseded run on the same ref is cancelled rather than left burning minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The timeout derives from a measured fresh-clone chain well under two minutes,
+  # then multiplied for runner variance. The point is that a stuck install dies in
+  # minutes rather than running against the platform default.
+  #
+  # Actions are pinned to full commit SHAs, not tags: a tag can be moved to point at
+  # new code, a commit SHA cannot. The runner image is pinned for the same reason a
+  # floating label is an undeclared input.
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # The 3.12 series is what the repository declares (Makefile, ruff, mypy);
+          # no file declares a patch. The patch floats on purpose, because catching
+          # a bad new patch release is one of the two drift classes the weekly run
+          # exists for.
+          python-version: "3.12"
+
+      # Creates the venv, asserts the interpreter is 3.12, installs the two pinned
+      # requirements files, wires the pre-commit shim, and runs the hygiene gate.
+      - run: make bootstrap
+
+      - run: make lint
+
+      - run: make type-check
+
+      - run: make verify-versions
+
+      - run: make hygiene
+
+      # The whole suite: the hygiene gates and their seeded violations, INV-P1's AST
+      # walk, INV-P2's interface shape, and the byte-equality gate on the frozen run
+      # schedule. No broker, no credential, no spend.
+      - run: make test

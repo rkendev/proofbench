@@ -1,0 +1,282 @@
+{
+  "constants": {
+    "baseline_tuning": {
+      "auto_commit_interval_ms": 5000
+    },
+    "client_tuning": {
+      "consumer_max_batch_records": 100,
+      "consumer_queued_min_messages": 1000,
+      "producer_batch_size_bytes": 16384,
+      "producer_linger_ms": 5
+    },
+    "fault_menu": [
+      "producer_sigkill_mid_send",
+      "consumer_sigkill_between_sinks",
+      "broker_stop_start"
+    ],
+    "fault_saga_band": [
+      0.2,
+      0.8
+    ],
+    "sagas_per_run": 200,
+    "step_names": [
+      "create_ticket",
+      "charge_card",
+      "send_confirmation"
+    ],
+    "transaction_boundary": "per_saga"
+  },
+  "master_seed": 20260728,
+  "runs": [
+    {
+      "control": true,
+      "fault_point": null,
+      "fault_type": "none",
+      "run_id": 0,
+      "sagas": 200,
+      "seed": "941fd94fa5c62dd8",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 96,
+        "step_index": 2
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 1,
+      "sagas": 200,
+      "seed": "f0ae2cfa400b9540",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 108,
+        "step_index": 1
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 2,
+      "sagas": 200,
+      "seed": "ae7f6d9f848f6566",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 149,
+        "step_index": 2
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 3,
+      "sagas": 200,
+      "seed": "1f6497c9aa5a8be2",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 106,
+        "step_index": 1
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 4,
+      "sagas": 200,
+      "seed": "d914012e6979ea9c",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 147,
+        "step_index": 2
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 5,
+      "sagas": 200,
+      "seed": "28c80511ee177646",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 117,
+        "step_index": 2
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 6,
+      "sagas": 200,
+      "seed": "03635f809f482242",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 91,
+        "step_index": 2
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 7,
+      "sagas": 200,
+      "seed": "846ef7f2c5354ad1",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 61,
+        "step_index": 2
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 8,
+      "sagas": 200,
+      "seed": "1ba538b1b71e22d4",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 133,
+        "step_index": 2
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 9,
+      "sagas": 200,
+      "seed": "d2c4f6d11ae436c5",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 90,
+        "step_index": 1
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 10,
+      "sagas": 200,
+      "seed": "757e1ad42ca58f3b",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 120,
+        "step_index": 1
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 11,
+      "sagas": 200,
+      "seed": "d93048985b1bb765",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 61,
+        "step_index": 1
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 12,
+      "sagas": 200,
+      "seed": "55decf8b21fa1059",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 75,
+        "step_index": 2
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 13,
+      "sagas": 200,
+      "seed": "e830592a80734ece",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 143,
+        "step_index": 1
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 14,
+      "sagas": 200,
+      "seed": "3d9bdb2e433a6904",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 90,
+        "step_index": 1
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 15,
+      "sagas": 200,
+      "seed": "3b393717b0c6f05d",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 45,
+        "step_index": 2
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 16,
+      "sagas": 200,
+      "seed": "7a90f0e73b55175c",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 157,
+        "step_index": 1
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 17,
+      "sagas": 200,
+      "seed": "ced09ca3a2b622d1",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 52,
+        "step_index": 1
+      },
+      "fault_type": "broker_stop_start",
+      "run_id": 18,
+      "sagas": 200,
+      "seed": "55ceae4cb8768413",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 145,
+        "step_index": 2
+      },
+      "fault_type": "producer_sigkill_mid_send",
+      "run_id": 19,
+      "sagas": 200,
+      "seed": "54098f62d3aa4e9d",
+      "steps_per_saga": 3
+    },
+    {
+      "control": false,
+      "fault_point": {
+        "saga_index": 95,
+        "step_index": 2
+      },
+      "fault_type": "consumer_sigkill_between_sinks",
+      "run_id": 20,
+      "sagas": 200,
+      "seed": "c3b9bf42317c2aea",
+      "steps_per_saga": 3
+    }
+  ],
+  "schema_version": 1
+}

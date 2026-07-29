@@ -207,6 +207,11 @@ class Settings(BaseSettings):
             )
         if self.kill_runs <= 0:
             raise ValueError(f"kill_runs must be positive, got {self.kill_runs}")
+        if not 0 <= self.control_run_id < self.total_runs:
+            raise ValueError(
+                f"control_run_id must be a run id in the schedule (0 to "
+                f"{self.total_runs - 1}), got {self.control_run_id}"
+            )
 
         low, high = self.fault_saga_band
         if not 0.0 <= low < high <= 1.0:

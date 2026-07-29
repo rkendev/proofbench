@@ -2,7 +2,19 @@
 # Dev and tooling pins live in requirements-dev.txt; do not add tools here.
 pydantic==2.10.6
 pydantic-settings==2.7.1
-# The Kafka client is deliberately absent. PB-T1 boots no broker and measures
-# nothing, so adding it now would be a dependency with no user. When it lands it
-# is confluent-kafka, imported lazily inside the run path, and its idempotence
-# flag is spelled enable.idempotence there (ADR-0002).
+# The Kafka client. Imported lazily inside the run path, so test collection
+# neither dials a broker nor imports this; the offline suite stays offline and CI
+# boots nothing. The wheel bundles librdkafka, so no build step is needed.
+#
+# The pin does more than fix an API. librdkafka's defaults are inputs to the
+# measurement, and this pin is what fixes the ones ProofBench does not restate:
+# transaction.timeout.ms in particular is owned by this line rather than left
+# unowned, and changing it requires its own ADR (ADR-0003). The resolved settings
+# and confluent_kafka.libversion() are written into every run's evidence.
+#
+# Its idempotence flag is spelled enable.idempotence, not the kafka-python
+# spelling (CLAIMS.md, ADR-0002). Every property name ProofBench sets was
+# verified against this exact version rather than taken on trust: librdkafka
+# rejects unknown properties at construction, so a client that constructs is a
+# property that exists.
+confluent-kafka==2.11.1

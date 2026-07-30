@@ -191,11 +191,38 @@ def transactional_id_for(run_id: int, name: str, role: str) -> str:
 
 
 def _producer_base(settings: Settings, bootstrap: str) -> dict[str, Any]:
-    """Producer settings shared by both configurations, byte for byte."""
+    """Producer settings shared by both configurations, byte for byte.
+
+    ``message.timeout.ms`` is here to close an INV-P3 leak, not to add a knob, and
+    it is the one setting in this module that was added because a gate could not see
+    the difference it was hiding.
+
+    librdkafka silently caps ``message.timeout.ms`` at ``transaction.timeout.ms``.
+    Constructing a producer with a ``transactional.id`` and
+    ``message.timeout.ms=61000`` is rejected outright; 60000 is accepted. So with
+    the property left unset, the good configuration's producers ran a 60s delivery
+    deadline (the pinned transaction timeout) and the baseline's ran librdkafka's
+    300s default. A five-fold difference in how long a send may hang before it is
+    reported as failed, on a property that is **not** on the INV-P3 allow-list,
+    produced indirectly by one that is.
+
+    That is exactly what INV-P3 exists to forbid, and it was invisible twice over:
+    ``resolved_config.json`` records only explicitly-set values, and
+    tests/unit/test_configs_allowlist.py compares the dictionaries this module
+    writes, so a divergence created below that level by the client itself could not
+    be seen by either. tests/unit/test_derived_defaults.py is the gate that can.
+
+    Setting it explicitly and identically also gives the broker-outage runs a
+    determinate outcome rather than a timing-dependent one: the outage is
+    deliberately longer than this, so an in-flight send fails permanently rather
+    than merely slowly, which is the only route by which an outage can produce a
+    lost side effect under commit-before-processing.
+    """
     return {
         "bootstrap.servers": bootstrap,
         "linger.ms": settings.producer_linger_ms,
         "batch.size": settings.producer_batch_size_bytes,
+        "message.timeout.ms": settings.producer_message_timeout_ms,
     }
 
 
@@ -207,6 +234,19 @@ def _consumer_base(settings: Settings, bootstrap: str, group_id: str) -> dict[st
     and a timeout that fired early would under-read the sink and report loss that
     never happened. A measurement harness cannot afford a stopping rule that can
     be wrong.
+
+    ``session.timeout.ms`` is shared and is about wall clock rather than about
+    measurement. A SIGKILLed consumer does not leave its group: the member is still
+    registered, so a restarted consumer's ``subscribe`` triggers a rebalance the
+    coordinator will not complete until the dead member's session expires. At
+    librdkafka's 45000 default that is roughly 45 seconds of dead time on every
+    process-phase restart, and across the matrix around ten minutes of nothing.
+    6000 is the broker's own ``group.min.session.timeout.ms`` floor.
+
+    It is set in **both** configurations, so it cannot become a difference between
+    them, and it changes only how quickly a restarted consumer rejoins. It does not
+    touch what is in flight at the kill instant, which is what ADR-0002 froze the
+    batch and prefetch settings to control, so it cannot move a measured outcome.
     """
     return {
         "bootstrap.servers": bootstrap,
@@ -215,6 +255,7 @@ def _consumer_base(settings: Settings, bootstrap: str, group_id: str) -> dict[st
         "queued.min.messages": settings.consumer_queued_min_messages,
         "enable.auto.offset.store": True,
         "enable.partition.eof": True,
+        "session.timeout.ms": settings.consumer_session_timeout_ms,
     }
 
 

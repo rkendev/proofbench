@@ -178,6 +178,85 @@ class Settings(BaseSettings):
     # inside the transaction and never auto-commits.
     baseline_auto_commit_interval_ms: int = 5000
 
+    # ------------------------------------------------------------------
+    # Apparatus tuning added at PB-T3 (see ADR-0004)
+    # ------------------------------------------------------------------
+    # None of these is a frozen experiment constant and none enters
+    # docs/run_schedule.json, whose constants block is an explicit whitelist in
+    # core/schedule.py. They are declared here rather than as literals in configs.py
+    # for the reason every other number is: a literal in a client map would be a
+    # second authority for a value that shapes a run, sitting outside every gate.
+    # tests/unit/test_timeout_relationships.py asserts the relationships between
+    # them, so the arithmetic that makes the matrix survivable is checkable rather
+    # than coincidental.
+
+    # librdkafka message.timeout.ms, set explicitly and IDENTICALLY in both
+    # configurations. This closes an INV-P3 leak rather than adding a knob.
+    # librdkafka silently caps message.timeout.ms at transaction.timeout.ms, so the
+    # good producer was running a 60s delivery deadline and the baseline 300s: a 5x
+    # difference on a property that is not allow-listed, caused indirectly by one
+    # that is (transactional.id), and invisible in resolved_config.json because only
+    # explicitly-set values are recorded there. 15000 sits below the pinned
+    # transaction timeout, so the transactional producer accepts the same literal and
+    # the property stays off the allow-list.
+    #
+    # It also bounds how long a send may hang before the harness must decide, which
+    # is what makes a broker outage's effect determinate instead of timing-dependent:
+    # the outage below is deliberately longer than this, so an in-flight send fails
+    # permanently rather than merely slowly.
+    producer_message_timeout_ms: int = 15000
+
+    # librdkafka session.timeout.ms, shared by both configurations. A SIGKILLed
+    # consumer does not leave its group, so a restarted subscribe waits out the dead
+    # member's session before the coordinator will complete the rebalance. At
+    # librdkafka's 45000 default that is roughly 45 seconds of dead time on every
+    # process-phase restart, which across the matrix is around ten minutes of
+    # nothing. 6000 is the broker's group.min.session.timeout.ms floor. It changes
+    # reconnection latency, never what is in flight at the kill instant, so it
+    # cannot move a measured outcome.
+    consumer_session_timeout_ms: int = 6000
+
+    # How long the supervisor holds the broker down for broker_stop_start. Fixed
+    # here, before any result, with four reasons recorded in ADR-0004:
+    #   1. it must exceed producer_message_timeout_ms, so the in-flight sink write
+    #      fails permanently rather than slowly. That is the only route by which a
+    #      broker outage can produce a lost side effect under commit-before-processing
+    #   2. it must comfortably exceed baseline_auto_commit_interval_ms, so the
+    #      stored-but-unapplied offset is actually committed during the outage
+    #   3. the observed outage is bounded below by compose stop plus JVM start plus
+    #      coordinator load anyway, so a shorter nominal figure would not be honoured
+    #   4. the headroom between 15s and 25s absorbs stop and start jitter without
+    #      making the choice sensitive to it
+    broker_outage_ms: int = 25000
+
+    # Headroom reserved inside the pinned transaction.timeout.ms, on top of the
+    # outage, for the coordinator reload that PB-T2 already observed on first boot
+    # (SETUP.md records the "Not coordinator" and "Coordinator load in progress"
+    # retries), plus the abort round trip, plus the replay of one saga. On a broker
+    # run under the good configuration the outage sits inside an open per-saga
+    # transaction, and a transaction that timed out would present as a fatal error,
+    # consume recovery budget, and land as apparatus_failure, which under the
+    # matrix-validity rule voids the whole matrix from a single run.
+    txn_headroom_ms: int = 20000
+
+    # How many times the frozen baseline commit interval a phase waits at the fault
+    # point before the fault fires, so the configuration's own commit mechanism gets
+    # one full opportunity to act. Twice rather than once because a tick can land
+    # microseconds before the offset store, and one interval therefore does not
+    # guarantee a tick AFTER the store. See ADR-0004 for why this is a validity
+    # repair and what it costs.
+    fault_hold_intervals: int = 2
+
+    @property
+    def fault_hold_ms(self) -> int:
+        """How long a phase holds at the fault point, derived from the frozen interval.
+
+        Derived rather than declared, so the hold cannot drift away from the
+        mechanism it exists to give an opportunity to. Changing the frozen interval
+        changes the hold with it.
+        """
+        return self.fault_hold_intervals * self.baseline_auto_commit_interval_ms
+
     @property
     def steps_per_saga(self) -> int:
         """Steps per saga (M), derived from the step names rather than restated."""

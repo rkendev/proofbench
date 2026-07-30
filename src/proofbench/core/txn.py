@@ -61,6 +61,23 @@ ROLES: tuple[str, ...] = (ROLE_INGEST, ROLE_SINK)
 # configs.transactional_id_for. A test pins that they do.
 _SCOPE_SEPARATOR = "/"
 
+# What the client pin fixes transaction.timeout.ms to, in milliseconds.
+#
+# Recorded rather than set. ADR-0003 section 8 leaves this value to the pin on
+# purpose: restating it as a frozen constant would change docs/run_schedule.json,
+# which PB-T3 may not touch, and any later change to it needs its own ADR. So the
+# harness never passes transaction.timeout.ms to a producer, and this constant is
+# the harness writing down what it observed the pin to be.
+#
+# It is not taken on trust. tests/unit/test_timeout_relationships.py probes the
+# pinned client: a transactional producer accepts message.timeout.ms equal to this
+# value and rejects one millisecond more, because librdkafka validates
+# message.timeout.ms <= transaction.timeout.ms at construction. That pins the number
+# to the client rather than to this comment, so a client upgrade that moved the
+# default turns the probe red instead of silently shrinking the headroom that
+# ADR-0004's combined bound depends on.
+PINNED_TRANSACTION_TIMEOUT_MS = 60_000
+
 
 class TransactionAccountingError(Exception):
     """A transactional call was made in a state that cannot be accounted for.

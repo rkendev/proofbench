@@ -289,6 +289,23 @@ def test_no_setting_restates_a_frozen_number(
         settings.producer_batch_size_bytes,
         settings.consumer_queued_min_messages,
         settings.baseline_auto_commit_interval_ms,
+        # Added at PB-T3, and this gate is what made adding them a visible act: both
+        # tripped it as stray literals until they were declared in Settings and
+        # listed here, which is exactly the friction the rule exists to create.
+        # ADR-0004 records both. Neither is a frozen experiment constant and neither
+        # enters docs/run_schedule.json.
+        #
+        # message.timeout.ms closes an INV-P3 leak rather than adding a knob:
+        # librdkafka caps it at transaction.timeout.ms, so with the property unset
+        # the good producers ran a 60s delivery deadline and the baseline's ran 300s,
+        # a difference on a property that is not allow-listed produced indirectly by
+        # one that is. tests/unit/test_derived_defaults.py is the gate for that.
+        settings.producer_message_timeout_ms,
+        # session.timeout.ms is wall clock, not measurement: a SIGKILLed consumer
+        # does not leave its group, so a restarted subscribe waits out the dead
+        # member's session. Identical in both configurations, and it changes
+        # reconnection latency rather than what is in flight at the kill instant.
+        settings.consumer_session_timeout_ms,
     }
     seen: set[int] = set()
     for configuration in configurations.values():

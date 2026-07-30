@@ -67,6 +67,13 @@ def test_every_producer_property_the_harness_sets_exists(settings: Settings) -> 
         "batch.size": settings.producer_batch_size_bytes,
         "enable.idempotence": True,
         "transactional.id": "proofbench.contract.probe",
+        # Added at PB-T3 to close an INV-P3 leak. The value has to be acceptable to
+        # both a transactional and a non-transactional producer, which is a stronger
+        # requirement than mere existence: librdkafka caps it at
+        # transaction.timeout.ms, so a value above the pinned 60000 would construct
+        # under the baseline and be rejected under the good configuration.
+        # tests/unit/test_derived_defaults.py covers the cap itself.
+        "message.timeout.ms": settings.producer_message_timeout_ms,
     }.items():
         _producer({key: value})
 
@@ -80,6 +87,11 @@ def test_every_consumer_property_the_harness_sets_exists(settings: Settings) -> 
         "auto.commit.interval.ms": settings.baseline_auto_commit_interval_ms,
         "enable.partition.eof": True,
         "isolation.level": "read_committed",
+        # Added at PB-T3 so a restarted process phase does not wait out a dead
+        # member's session on every kill. The broker enforces its own floor at join
+        # time rather than at construction, so this checks the property exists and
+        # tests/unit/test_timeout_relationships.py checks the value clears the floor.
+        "session.timeout.ms": settings.consumer_session_timeout_ms,
     }.items():
         _consumer({key: value})
 

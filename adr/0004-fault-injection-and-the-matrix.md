@@ -402,6 +402,91 @@ recovery history, the offset gaps and the records they skip, the attempt count, 
 `run_status`. The gap arithmetic is carried so a loss count can be reconciled against the
 window that explains it rather than taken on the invariant's word.
 
+---
+
+## 9. Void record: cycle 1 of 3, 2026-07-30
+
+**The matrix ran all 42 executions in 30.9 minutes and VOIDED under validity rule 3:
+4 apparatus failures against the pre-registered limit of 2.** Log
+`runs/matrix-20260730-181823.log`, matrix `runs/matrix.json`.
+
+Recorded here whether or not a later cycle succeeds. The record of a void is part of the
+result, and rule 6 caps the cycles at three precisely so that repairing until the
+apparatus yields a clean matrix is bounded and visible.
+
+Outcome distribution: 25 clean, 13 not_clean, 4 apparatus_failure.
+
+### The four diagnoses
+
+All four are the **same failure mode**, and all four fell inside the good
+configuration's 20 kill runs. **None is a control**, so rule 4 voided the matrix
+independently of the count: even one of these would have done it.
+
+| run | configuration | fault type | phase | attempt | exception |
+| --- | --- | --- | --- | --- | --- |
+| 03 | good | broker_stop_start | process | 1 | recovery budget exhausted after 4 UNKNOWN_MEMBER_ID |
+| 06 | good | broker_stop_start | process | 1 | as above |
+| 15 | good | broker_stop_start | process | 1 | as above |
+| 18 | good | broker_stop_start | process | 1 | as above |
+
+Each recovery history is identical in shape: one `reinit_producer` for a `_MSG_TIMED_OUT`
+delivery failure inside the fault window, then **four** `abort_and_replay` entries, each
+carrying `UNKNOWN_MEMBER_ID` from `send_offsets_to_transaction`, after which the loop
+exhausted its bound and raised.
+
+`transactions_committed` was 349, 317, 290 and 252, which is 200 from ingest plus exactly
+`saga_index` from process (149, 117, 90, 52). Each run therefore died at its own seeded
+fault saga, as designed, and the failure is in the recovery rather than in the injection.
+
+**Cause, established mechanically rather than inferred.** The broker restart invalidates
+the consumer's group membership. `send_offsets_to_transaction` needs valid membership,
+which it reads from `consumer_group_metadata()`. A consumer rejoins its group only when
+the client is polled. **The recovery loop replays the sink write without ever polling the
+consumer**, so the membership is stale on the first retry and identically stale on every
+retry after it. The loop is structurally incapable of recovering from this condition: it
+retries a call that cannot succeed until an action the loop never performs has happened.
+Confirmed by walking the AST: `write_group_with_recovery` and `write_group` contain no
+`consume` or `poll` call at all.
+
+Runs 09 and 12, the other two good broker executions, completed clean with a single
+recovery event and no `UNKNOWN_MEMBER_ID`. The difference is whether the coordinator's
+reload after restart happened to preserve the membership, which is a race. That two of
+six survived is what made this look like an intermittent fault rather than a structural
+one until the histories were read side by side.
+
+### The baseline broker runs are not affected
+
+All six completed as `not_clean` with 3 duplicated and 0 lost. The baseline makes no
+transactional call, so it never reaches `send_offsets_to_transaction` and never meets
+this condition. The asymmetry is a property of the defect, not of the configurations.
+
+### Classification of the repair, before it is proposed
+
+Measured against the principle at the top of this ADR.
+
+**Validity repair.** ADR-0003 section 6 fixes the response to an abortable error as
+"abort, then replay that saga". The code classifies correctly and then performs a replay
+that cannot succeed, because a saga's offset commit requires group membership and the
+loop starves the client of the poll that restores it. **The contract's stated recovery
+action is not actually being performed.** Letting the consumer rejoin before the replay
+moves the code toward what section 6 already froze.
+
+It changes no classification, does not widen what counts as in-window, does not widen
+what counts as attributable, does not raise the recovery budget, and touches no floor and
+no denominator. The set of recoverable conditions is defined by `classify`, which is
+untouched.
+
+**Rejected as tuning, and not proposed:** raising the recovery budget so four retries
+become enough; reclassifying `UNKNOWN_MEMBER_ID`; widening attributability so the
+incomplete run scores anyway. Each would move the declaration toward a wanted result and
+each would make the failure disappear without the apparatus becoming able to do what the
+contract says it does.
+
+**The honest alternative, also not a repair:** change nothing, and report that the good
+configuration's broker runs cannot be executed by this apparatus. That ships C1 as
+not-evaluable at its pre-registered denominator, and it is the outcome if the repair
+above does not hold.
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose

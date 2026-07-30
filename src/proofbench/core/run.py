@@ -38,7 +38,12 @@ from typing import Any, Protocol
 from proofbench.config import Settings, repo_root
 from proofbench.core.configs import RunConfiguration, build_both, build_configuration
 from proofbench.core.ledger_diff import KeyedLedgerDiffer
-from proofbench.core.recovery import ApparatusFailure, RecoveryBudget
+from proofbench.core.recovery import (
+    ApparatusFailure,
+    RecoveryBudget,
+    TransactionOutcome,
+    classify,
+)
 from proofbench.core.saga import Saga, expand_sagas, expected_ledger, observed_record
 from proofbench.core.topics import provision, read_to_end
 from proofbench.core.trace import load_trace
@@ -50,6 +55,7 @@ from proofbench.core.txn import (
     AccountedProducer,
     TransactionLedger,
 )
+from proofbench.core.window import WindowState, is_within_fault_window, why_apparatus_failure
 from proofbench.interfaces.ledger import LedgerDiff, SideEffectRecord
 
 # How long a transactional call may take before the client gives up. Passed
@@ -141,13 +147,38 @@ class RunResult:
         }
 
 
+class DeliveryError(Exception):
+    """Records did not reach the broker. Deliberately says nothing about whose fault.
+
+    Neutral on purpose, and that is the whole point of the type. Whether a failed
+    send is part of an injected fault or a break in the apparatus is not a property
+    of the send: it is a property of when the send happened relative to the fault
+    window, and ``_Sender`` cannot know that. So the sender reports the facts and
+    the caller, which holds the window state and the recovery budget, decides.
+
+    Carries the client's error objects rather than strings, because the ADR-0003
+    section 6 contract branches on ``retriable()``, ``txn_requires_abort()`` and
+    ``fatal()``, and a formatted message cannot be asked those questions.
+    """
+
+    def __init__(self, message: str, errors: tuple[Any, ...], still_queued: int) -> None:
+        super().__init__(message)
+        self.errors = errors
+        self.still_queued = still_queued
+
+
 class DeliveryFailure(ApparatusFailure):
-    """A record never reached the broker, so no count can be taken from this run.
+    """A record never reached the broker, and it was not part of any injected fault.
 
     Distinct from loss on purpose. Loss is a measured outcome of a delivery
     configuration under an injected fault. This is the harness failing to send at
     all, and folding it into loss would attribute a client-side problem to the
     configuration under test, which would inflate C2 for free.
+
+    No longer raised by the sender. It is raised by the caller, and only after the
+    fault-window boundary in ``core/window.py`` has said the failure lies outside
+    every expected window. PB-T2 raised it unconditionally, which would have ended
+    all twelve broker executions unscored.
     """
 
 
@@ -170,7 +201,11 @@ class _Sender:
         from confluent_kafka import Producer
 
         self.producer = Producer(conf)
-        self.errors: list[str] = []
+        # The client's error objects, not strings: the recovery contract branches on
+        # retriable(), txn_requires_abort() and fatal(), and a formatted message
+        # cannot be asked those questions.
+        self.errors: list[Any] = []
+        self.error_topics: list[str] = []
         self.sent = 0
         # Constructed for both configurations, exercised only by the transactional
         # one. Keeping it unconditional is what lets the two configurations share
@@ -180,7 +215,8 @@ class _Sender:
 
     def _on_delivery(self, error: Any, message: Any) -> None:
         if error is not None:
-            self.errors.append(f"{message.topic() if message else 'unknown'}: {error}")
+            self.errors.append(error)
+            self.error_topics.append(str(message.topic()) if message else "unknown")
 
     def produce(self, topic: str, key: str, value: bytes) -> None:
         self.producer.produce(
@@ -189,18 +225,85 @@ class _Sender:
         self.sent += 1
 
     def flush(self) -> None:
-        """Drain the queue and raise on anything that did not make it."""
+        """Drain the queue and raise on anything that did not make it.
+
+        The error list is cleared on the way out, which PB-T2 never did. Left
+        uncleared, one delivery error made every later ``flush`` on the same sender
+        raise for the rest of the run: harmless while no run was expected to survive
+        a delivery error, and fatal now that the broker-outage runs are expected to
+        do exactly that. A single transient error would have poisoned every
+        subsequent saga and the run would have reported total loss.
+        """
         remaining = self.producer.flush(_FLUSH_TIMEOUT_S)
+        errors = tuple(self.errors)
+        self.errors.clear()
+        self.error_topics.clear()
+
         if remaining:
+            # Not routed through the fault-window boundary, in either direction.
+            # message.timeout.ms is set below the flush timeout and a gate holds it
+            # there, so librdkafka must resolve every queued record, by delivery or
+            # by a reported error, well inside this window. Records still queued
+            # afterwards mean the client itself is stuck, which is an apparatus
+            # break whether or not a fault window happens to be open.
             raise DeliveryFailure(
-                f"{remaining} record(s) were still queued after {_FLUSH_TIMEOUT_S:.0f}s; "
-                f"they never reached the broker, so this run reports no result"
+                f"{remaining} record(s) were still queued after {_FLUSH_TIMEOUT_S:.0f}s, "
+                f"which is longer than message.timeout.ms; the client is stuck rather "
+                f"than the broker being absent, so this run reports no result"
             )
-        if self.errors:
-            raise DeliveryFailure(
-                f"{len(self.errors)} record(s) were rejected by the broker, "
-                f"starting with {self.errors[0]}"
+        if errors:
+            raise DeliveryError(
+                f"{len(errors)} record(s) failed delivery, starting with {errors[0]}",
+                errors=errors,
+                still_queued=0,
             )
+
+
+def resolve_delivery_error(
+    failure: DeliveryError,
+    state: WindowState,
+    budget: RecoveryBudget,
+) -> TransactionOutcome:
+    """Decide what a failed delivery is, and return what to do about it.
+
+    The boundary the T-prompt requires, in one place, with both branches visible
+    beside each other:
+
+    - **Inside an expected fault window**, on a run whose schedule entry names a
+      fault, the failure is part of the fault. It goes to the ADR-0003 section 6
+      contract: ``classify`` returns retry, abort and replay, or discard and re-init
+      with the same transactional id, and the choice is recorded on the budget.
+    - **Outside a fault window, or once the recovery budget is exhausted**, it is an
+      apparatus failure. ``DeliveryFailure`` propagates, the run records
+      ``run_status: apparatus_failure``, writes whatever evidence it holds, and is
+      never scored.
+
+    Getting this backwards in either direction is fatal to the result. Too strict
+    and the twelve broker executions vanish, taking the most interesting rows of the
+    matrix with them. Too loose and a genuine apparatus break is scored as a
+    finding, which is worse: a client-side stall would surface as lost side effects
+    and inflate C2 invisibly.
+
+    Under the baseline this is the only error surface there is, because the baseline
+    makes no transactional call at all, so ``classify`` never sees anything else. A
+    delivery error inside the window whose offset the consumer already committed is
+    a lost side effect, and the loss is recorded by the ledger diff rather than
+    here. This function's job is only to keep the run alive so that the diff can
+    see it.
+    """
+    if not is_within_fault_window(state):
+        raise DeliveryFailure(
+            f"{failure}. This is outside any expected fault window, because "
+            f"{why_apparatus_failure(state)}. The run reports no result."
+        ) from failure
+
+    # The first reported error decides, and the rest are recorded. The contract is
+    # per-call rather than per-record: one failing produce inside one transaction is
+    # one recovery decision, and taking the cheapest correct response to the first
+    # error is what ADR-0003 section 6 fixes the predicate order for.
+    outcome = classify(failure.errors[0])
+    budget.record(outcome, f"delivery failed inside the fault window: {failure}")
+    return outcome
 
 
 def load_schedule_entry(run_id: int, settings: Settings) -> dict[str, Any]:

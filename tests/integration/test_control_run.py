@@ -134,6 +134,36 @@ def test_no_transaction_stayed_open_anywhere_near_the_pinned_timeout(
     )
 
 
+def test_the_client_really_hands_over_the_frozen_batch_size(
+    broker: str, settings: Settings
+) -> None:
+    """The measurement that proves the D3 repair, rather than the code that intends it.
+
+    ``consumer_max_batch_records`` is frozen at 100 and ``config.py`` calls it "the
+    direct determinant of C2 loss" because it bounds what has been committed but not
+    yet applied at the kill instant. PB-T2 used ``poll``, which hands over one record
+    at a time, so the constant reached no client and the real window was one record.
+
+    Passing the number to ``consume`` is not sufficient on its own: if the client
+    returned single-record batches anyway, the window would still be one record and
+    every other field in the evidence would look identical. So the largest batch the
+    client actually delivered is recorded per run and asserted here.
+    """
+    result = execute_run(settings.control_run_id, GOOD, settings)
+    largest = result.summary()["process"]["largest_batch"]
+
+    assert largest == settings.consumer_max_batch_records, (
+        f"the client handed over batches of at most {largest} records where the frozen "
+        f"constant is {settings.consumer_max_batch_records}. The commit-ahead window "
+        f"C2 measures is the batch size, so a smaller batch is a smaller claim."
+    )
+    assert result.summary()["process"]["sagas_processed"] == settings.sagas_per_run
+    assert result.summary()["process"]["partial_groups"] == 0, (
+        "a no-fault run read the stream from offset 0, so every group is a whole saga; "
+        "a partial group here would mean the grouping rule had misfired"
+    )
+
+
 def test_the_control_run_needed_no_recovery(broker: str, settings: Settings) -> None:
     """An empty recovery history is part of what the control shows.
 

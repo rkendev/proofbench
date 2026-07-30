@@ -30,6 +30,7 @@ the difference CLAIMS.md names.
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -69,6 +70,12 @@ _TXN_TIMEOUT_S = 60.0
 # the broker, and counting them as lost would attribute a client-side stall to
 # the delivery configuration.
 _FLUSH_TIMEOUT_S = 60.0
+
+# The batch wait and the stall budget are tunables, so they live in Settings rather
+# than here, and tests/unit/test_timeout_relationships.py gates the relationships
+# between them and the fault durations. Two different quantities that PB-T2 conflated
+# because with ``poll`` they coincided; see the comments in config.py for the measured
+# reason they cannot be one number.
 
 STATUS_CLEAN = "clean"
 STATUS_NOT_CLEAN = "not_clean"
@@ -115,6 +122,7 @@ class RunResult:
     sinks: tuple[SinkOutcome, ...]
     budget: RecoveryBudget
     transactions: TransactionLedger
+    process_stats: dict[str, int]
     status: str
 
     @property
@@ -144,6 +152,13 @@ class RunResult:
             "transactions_aborted": self.transactions.aborted,
             "transactions": self.transactions.to_jsonable(),
             "recovery": self.budget.to_jsonable(),
+            # What the consume loop actually saw. largest_batch is the one that
+            # matters for interpreting a C2 number: consumer_max_batch_records is
+            # only "the direct determinant of C2 loss" if the client really handed
+            # over batches of that size, and a run whose batches came back as single
+            # records would have a one-record commit-ahead window while looking
+            # identical in every other field.
+            "process": dict(self.process_stats),
             "sinks": [sink.to_jsonable() for sink in self.sinks],
         }
 
@@ -428,6 +443,26 @@ def process(
     The only configuration-dependent code here is the transaction bracket, which
     is the difference CLAIMS.md names. Commit placement is not a branch: it is
     enable.auto.offset.store plus enable.auto.commit, both client settings.
+
+    **Records arrive by ``consume``, not by ``poll``, and that is the whole point of
+    the frozen batch size.** ``consumer_max_batch_records`` is frozen at 100, is
+    emitted into ``docs/run_schedule.json``, and ``config.py`` describes it as "the
+    direct determinant of C2 loss" on the grounds that it bounds what has been
+    committed but not yet applied at the kill instant. ADR-0002's cross-client table
+    maps it to "the ``num_messages`` argument to ``Consumer.consume()``". PB-T2 used
+    ``poll``, which hands over one record at a time, so with
+    ``enable.auto.offset.store=true`` the stored offset ran at most a single record
+    ahead of applied work rather than up to a hundred. The frozen artifact described
+    a window the code did not have, and the constant that decides C2's loss
+    mechanism reached no client at all. Using ``consume`` moves the code toward what
+    was already frozen.
+
+    **Sagas are grouped by ``saga_id``, not by counting to M.** Identical behaviour
+    on an aligned stream, so the control run is unchanged, and correct behaviour on a
+    resumed one. After a kill the baseline's committed offset can sit mid-saga, so a
+    restarted consumer starts mid-saga and a count-of-M grouping would staple the
+    tail of one saga to the head of the next. Grouping on the identity the payload
+    carries cannot be misaligned by where the stream happens to resume.
     """
     from confluent_kafka import Consumer, KafkaError, TopicPartition
 
@@ -440,53 +475,101 @@ def process(
     sink_a, sink_b = configuration.topics.sinks
     per_sink: dict[str, int] = {sink_a: 0, sink_b: 0}
     buffered: list[tuple[str, bytes]] = []
+    buffered_saga: str | None = None
     last_position: TopicPartition | None = None
     sagas_done = 0
+    partial_groups = 0
+    # The largest batch the client actually handed over. Recorded because the frozen
+    # consumer_max_batch_records is only "the direct determinant of C2 loss" if the
+    # client really does deliver batches of that size: a run whose batches all came
+    # back as one record would have a one-record commit-ahead window and would look
+    # exactly like a run with the constant wired up. Measured, not assumed.
+    largest_batch = 0
+
+    def write_group() -> None:
+        """Write the buffered saga to both sinks and commit the way the config says.
+
+        One path for both configurations. The transaction bracket is the only
+        configuration-dependent code, and the offsets travel inside it under the good
+        configuration because that is what C1 names.
+        """
+        nonlocal buffered, buffered_saga
+        if transactional:
+            sender.txn.begin()
+        # Sink A is durable before sink B is attempted. One path, no branch.
+        write_saga_to_sinks(sender, (sink_a, sink_b), buffered)
+        per_sink[sink_a] += len(buffered)
+        per_sink[sink_b] += len(buffered)
+        if transactional:
+            assert last_position is not None, "a group cannot close before a record arrived"
+            sender.producer.send_offsets_to_transaction(
+                [last_position], consumer.consumer_group_metadata(), _TXN_TIMEOUT_S
+            )
+            sender.txn.commit()
+        buffered = []
+        buffered_saga = None
 
     try:
         consumer.subscribe([configuration.topics.input])
-        while True:
-            message = consumer.poll(_TXN_TIMEOUT_S)
-            if message is None:
-                raise ApparatusFailure(
-                    f"the input topic stalled for {_TXN_TIMEOUT_S:.0f}s after "
-                    f"{sagas_done} of {expected_sagas} sagas; the run reports no result"
-                )
-            error = message.error()
-            if error is not None:
-                if error.code() == KafkaError._PARTITION_EOF:
-                    break
-                raise ApparatusFailure(f"consuming the input topic failed: {error}")
-
-            payload: dict[str, Any] = json.loads(bytes(message.value()).decode("utf-8"))
-            buffered.append((str(payload["idempotency_key"]), bytes(message.value())))
-            last_position = TopicPartition(
-                message.topic(), message.partition(), message.offset() + 1
+        reached_end = False
+        idle_since: float | None = None
+        while not reached_end:
+            batch = consumer.consume(
+                num_messages=settings.consumer_max_batch_records,
+                timeout=settings.consume_batch_wait_ms / 1000.0,
             )
-
-            if len(buffered) < settings.steps_per_saga:
+            if not batch:
+                # No progress on this call. That is ordinary while the broker is down
+                # during an injected outage, or while a restarted consumer waits out
+                # the dead member's session, so it is only a failure once the phase
+                # has made no progress for the whole stall budget.
+                #
+                # One rule, one branch, no configuration anywhere in it. The stopping
+                # rule is shared code in both configurations, which INV-P3 requires of
+                # the run path and which the allow-list gate cannot see because it
+                # compares settings rather than control flow.
+                idle_since = time.monotonic() if idle_since is None else idle_since
+                idle_for = time.monotonic() - idle_since
+                if idle_for > settings.consume_stall_budget_ms / 1000.0:
+                    raise ApparatusFailure(
+                        f"the input topic made no progress for {idle_for:.0f}s after "
+                        f"{sagas_done} of {expected_sagas} sagas; the run reports no result"
+                    )
                 continue
+            idle_since = None
+            largest_batch = max(largest_batch, len(batch))
 
-            if transactional:
-                sender.txn.begin()
-            # Sink A is durable before sink B is attempted. One path, no branch.
-            write_saga_to_sinks(sender, (sink_a, sink_b), buffered)
-            per_sink[sink_a] += len(buffered)
-            per_sink[sink_b] += len(buffered)
-            if transactional:
-                sender.producer.send_offsets_to_transaction(
-                    [last_position], consumer.consumer_group_metadata(), _TXN_TIMEOUT_S
+            for message in batch:
+                error = message.error()
+                if error is not None:
+                    if error.code() == KafkaError._PARTITION_EOF:
+                        reached_end = True
+                        break
+                    raise ApparatusFailure(f"consuming the input topic failed: {error}")
+
+                payload: dict[str, Any] = json.loads(bytes(message.value()).decode("utf-8"))
+                saga_id = str(payload["saga_id"])
+                if buffered and saga_id != buffered_saga:
+                    write_group()
+                    sagas_done += 1
+
+                buffered.append((str(payload["idempotency_key"]), bytes(message.value())))
+                buffered_saga = saga_id
+                last_position = TopicPartition(
+                    message.topic(), message.partition(), message.offset() + 1
                 )
-                sender.txn.commit()
-
-            buffered = []
-            sagas_done += 1
 
         if buffered:
-            raise ApparatusFailure(
-                f"the input topic ended mid-saga with {len(buffered)} of "
-                f"{settings.steps_per_saga} steps buffered; the stream is malformed"
-            )
+            # Written, never raised. PB-T2 raised here on the grounds that a stream
+            # ending mid-saga is malformed, which is true of a stream read from its
+            # beginning and false of one resumed from a committed offset that landed
+            # mid-saga. Raising would turn the baseline's own commit placement into an
+            # apparatus failure and manufacture loss out of a real measurement.
+            if len(buffered) < settings.steps_per_saga:
+                partial_groups += 1
+            write_group()
+            sagas_done += 1
+
         if sagas_done != expected_sagas:
             raise ApparatusFailure(
                 f"processed {sagas_done} sagas where the schedule says {expected_sagas}; "
@@ -499,7 +582,13 @@ def process(
     # to get here. PB-T2 injects no fault, so it stays empty, and an empty
     # recovery history in the control evidence is itself worth recording.
     del budget
-    return {"sink_a": per_sink[sink_a], "sink_b": per_sink[sink_b]}
+    return {
+        "sink_a": per_sink[sink_a],
+        "sink_b": per_sink[sink_b],
+        "sagas_processed": sagas_done,
+        "partial_groups": partial_groups,
+        "largest_batch": largest_batch,
+    }
 
 
 # --------------------------------------------------------------------------
@@ -570,6 +659,7 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
         sinks=tuple(sinks),
         budget=budget,
         transactions=transactions,
+        process_stats={key: value for key, value in sent.items() if not key.startswith("sink_")},
         status=status,
     )
 

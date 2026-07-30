@@ -167,19 +167,72 @@ def test_the_delivery_deadline_sits_below_the_flush_bound(settings: Settings) ->
 # --------------------------------------------------------------------------
 
 
-def test_the_poll_bound_outlasts_a_rejoin_plus_an_outage(settings: Settings) -> None:
-    """Otherwise a restarted consumer apparatus-fails for a reason that is not a fault.
+def test_the_stall_budget_outlasts_a_whole_broker_fault(settings: Settings) -> None:
+    """The bound that decides whether a working fault reads as an apparatus failure.
+
+    On a broker run the consumer legitimately makes no progress for the entire
+    outage, and then for the coordinator reload and recovery that follow it. That is
+    exactly ``broker_outage_ms + txn_headroom_ms``, the same span the combined
+    open-transaction bound reserves. A stall budget below it would turn a fault that
+    worked into a false ``apparatus_failure``, and under matrix-validity rule 4 a
+    single one of those voids the entire matrix.
+
+    This is the same failure mode as the batch-wait defect one layer up: a timeout
+    chosen for the no-fault case, applied to a run whose whole point is that nothing
+    happens for 25 seconds.
+
+    Proven red by lowering the stall budget below the outage.
+    """
+    legitimate_ms = settings.broker_outage_ms + settings.txn_headroom_ms
+    assert legitimate_ms < settings.consume_stall_budget_ms, (
+        f"the stall budget is {settings.consume_stall_budget_ms}ms but a broker run "
+        f"can legitimately make no progress for {legitimate_ms}ms "
+        f"({settings.broker_outage_ms}ms outage plus {settings.txn_headroom_ms}ms of "
+        f"coordinator reload and recovery). A working fault would be recorded as an "
+        f"apparatus failure and void the matrix."
+    )
+
+
+def test_the_stall_budget_also_outlasts_a_rejoin_plus_an_outage(settings: Settings) -> None:
+    """The other route to a legitimate silence, which is not the same span.
 
     A restarted process phase waits out the dead member's session before the
-    coordinator completes the rebalance, and on a broker run it may also be waiting
-    for the broker to come back. The stall check has to allow for both together, or
-    it fires on the apparatus's own recovery.
+    coordinator completes the rebalance. That can compose with an outage, so both
+    bounds are asserted rather than assuming one dominates.
     """
     worst_case_ms = settings.consumer_session_timeout_ms + settings.broker_outage_ms
-    assert worst_case_ms < _TXN_TIMEOUT_S * 1000, (
-        f"the consume stall bound is {_TXN_TIMEOUT_S * 1000:.0f}ms but a restarted "
-        f"consumer on a broker run can legitimately wait {worst_case_ms}ms"
+    assert worst_case_ms < settings.consume_stall_budget_ms
+
+
+def test_the_batch_wait_is_short_and_the_stall_budget_is_not(settings: Settings) -> None:
+    """The two quantities that consume forced apart, kept apart.
+
+    PB-T2 used one number for both, because with ``poll`` they coincided: a call
+    returned one record or nothing, so "this call timed out" and "the topic stalled"
+    were the same event. ``consume`` waits for the batch to FILL, so a 60s batch wait
+    is paid in full on the last call of every run, where all that is left to collect
+    is a single partition-EOF event. Measured at 62s per phase against 1.2s of real
+    work before the two were split, and 3.4s after.
+
+    The batch wait therefore has to be short, and the stall budget has to stay long
+    enough to cover a legitimate outage. Collapsing them back into one number breaks
+    one or the other, so the relationship is asserted rather than left to memory.
+    """
+    assert settings.consume_batch_wait_ms <= 5000, (
+        "the per-call batch wait is long enough to be paid on every run's final call, "
+        "which is the 60-second cost consume's fill-the-batch semantics produced"
     )
+    assert settings.consume_batch_wait_ms < settings.consume_stall_budget_ms
+
+
+def test_the_batch_wait_is_short_enough_to_not_dominate_a_run(settings: Settings) -> None:
+    """It is paid once per empty return, so it bounds how coarsely a stall is detected.
+
+    Kept well under the stall budget so the budget is measured in many short waits
+    rather than in three long ones, which is what makes "no progress for N seconds"
+    mean roughly N rather than up to N plus one batch wait.
+    """
+    assert settings.consume_stall_budget_ms >= 10 * settings.consume_batch_wait_ms
 
 
 def test_the_session_timeout_is_at_or_above_the_broker_floor(settings: Settings) -> None:

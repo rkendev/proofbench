@@ -247,6 +247,39 @@ class Settings(BaseSettings):
     # repair and what it costs.
     fault_hold_intervals: int = 2
 
+    # How long one Consumer.consume call may wait for its batch to fill.
+    #
+    # Short on purpose, and the reason is measured rather than assumed. Unlike poll,
+    # consume waits for the batch to FILL: given num_messages=100 and a 60s timeout it
+    # blocks the whole 60s rather than returning the one message that is available.
+    # Every run pays that on its final call, where all that is left to collect is the
+    # single partition-EOF event. Measured at 62s per process phase against 1.2s of
+    # real work, and 3.4s once the two waits were separated.
+    #
+    # It does not shrink the delivered batch, because ingest completes before process
+    # starts and queued.min.messages keeps the client's buffer deep, so the batches
+    # actually handed over are full. That is not taken on trust: every run records the
+    # largest batch it received, and an integration test asserts it equals the frozen
+    # consumer_max_batch_records.
+    consume_batch_wait_ms: int = 1000
+
+    # How long the process phase may make NO progress at all before the run is
+    # abandoned as an apparatus failure.
+    #
+    # A different quantity from the batch wait, and PB-T2 conflated the two because
+    # with poll they coincided: a call returned one record or nothing, so "this call
+    # timed out" and "the topic has stalled" were the same event. Keeping them apart
+    # makes the stopping rule strictly stricter than PB-T2's, because the budget now
+    # covers elapsed time without progress rather than the duration of a single call.
+    #
+    # The floor is set by what a working fault legitimately costs. On a broker run the
+    # consumer makes no progress for the whole outage, then for the coordinator reload
+    # and the recovery that follows it, which is exactly broker_outage_ms +
+    # txn_headroom_ms. A budget below that would turn a fault that worked into a false
+    # apparatus_failure, and under matrix-validity rule 4 a single one of those voids
+    # the entire matrix. tests/unit/test_timeout_relationships.py gates the bound.
+    consume_stall_budget_ms: int = 60000
+
     @property
     def fault_hold_ms(self) -> int:
         """How long a phase holds at the fault point, derived from the frozen interval.

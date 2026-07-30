@@ -206,15 +206,25 @@ class Settings(BaseSettings):
     # permanently rather than merely slowly.
     producer_message_timeout_ms: int = 15000
 
-    # librdkafka session.timeout.ms, shared by both configurations. A SIGKILLed
+    # librdkafka session.timeout.ms, shared by both configurations.
+    #
+    # First set to 6000, the broker's own floor, purely for wall clock: a SIGKILLed
     # consumer does not leave its group, so a restarted subscribe waits out the dead
-    # member's session before the coordinator will complete the rebalance. At
-    # librdkafka's 45000 default that is roughly 45 seconds of dead time on every
-    # process-phase restart, which across the matrix is around ten minutes of
-    # nothing. 6000 is the broker's group.min.session.timeout.ms floor. It changes
-    # reconnection latency, never what is in flight at the kill instant, so it
-    # cannot move a measured outcome.
-    consumer_session_timeout_ms: int = 6000
+    # member's session, and at librdkafka's 45000 default that is roughly 45 seconds of
+    # dead time on every process-phase restart.
+    #
+    # Raised back to 45000 after a broker-fault smoke run showed the choice was not
+    # neutral. With a 6s session and a 25s outage the consumer is evicted from its
+    # group WHILE THE BROKER IS DOWN, every time, and send_offsets_to_transaction then
+    # fails with UNKNOWN_MEMBER_ID on the way back. That turns the fault the schedule
+    # names, a broker outage, into a broker outage plus a consumer-group eviction: a
+    # different fault, caused by an apparatus setting chosen for speed, landing on all
+    # twelve broker executions.
+    #
+    # So the rule is that the session must outlast the outage, and it is gated. The
+    # cost is roughly ten minutes across the matrix, which is the right price for not
+    # measuring a fault nobody scheduled.
+    consumer_session_timeout_ms: int = 45000
 
     # How long the supervisor holds the broker down for broker_stop_start. Fixed
     # here, before any result, with four reasons recorded in ADR-0004:
@@ -278,7 +288,14 @@ class Settings(BaseSettings):
     # txn_headroom_ms. A budget below that would turn a fault that worked into a false
     # apparatus_failure, and under matrix-validity rule 4 a single one of those voids
     # the entire matrix. tests/unit/test_timeout_relationships.py gates the bound.
-    consume_stall_budget_ms: int = 60000
+    # Raised from 60000 when consumer_session_timeout_ms went to 45000: a restarted
+    # consumer can legitimately wait out a dead member's whole session, and a broker run
+    # can legitimately make no progress for the outage plus the coordinator reload. The
+    # frozen schedule gives each run exactly one fault type so those two never compose,
+    # but the budget is set above their sum anyway, because the cost of being generous
+    # is paid only when something is genuinely stuck and the cost of being tight is a
+    # working fault recorded as an apparatus failure.
+    consume_stall_budget_ms: int = 120000
 
     @property
     def fault_hold_ms(self) -> int:

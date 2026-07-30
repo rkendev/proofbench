@@ -129,6 +129,29 @@ def main(argv: list[str] | None = None) -> int:
     state.record_attempt(Attempt(args.phase, attempt_number, OUTCOME_STARTED))
     state.save(state_path)
 
+    def record_progress(last_applied: int) -> None:
+        """Persist how far this attempt has durably got, so a kill leaves a record.
+
+        The attempt is rewritten in place, so a SIGKILL at any instant leaves a
+        "started" record carrying the last offset the phase actually applied. The
+        attributability invariant needs that number: the gap between it and where the
+        restart resumes is what explains a lost side effect, and without it every
+        baseline loss is unattributable and a real measurement is reported as an
+        apparatus failure.
+        """
+        state.record_attempt(
+            Attempt(
+                args.phase,
+                attempt_number,
+                OUTCOME_STARTED,
+                resumed_at=resumed_so_far[0],
+                last_applied=last_applied,
+            )
+        )
+        state.save(state_path)
+
+    resumed_so_far: list[int | None] = [None]
+
     trace = load_trace(repo_root() / settings.trace_path)
     sagas = expand_sagas(str(entry["seed"]), settings, trace)
 
@@ -145,6 +168,10 @@ def main(argv: list[str] | None = None) -> int:
                 state.transactions,
                 is_control=bool(entry["control"]),
                 injector=injector,
+                # RunState IS the WindowState the boundary consumes, so the fault
+                # window the injector opened is the one the recovery path reads.
+                window=state,
+                progress=record_progress,
             )
             resumed_at = stats["resumed_at_offset"] if stats["resumed_at_offset"] >= 0 else None
             last_applied = (

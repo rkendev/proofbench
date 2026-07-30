@@ -119,6 +119,12 @@ control-run:
 # Deferred to PB-T3, which brings the fault injector, the 20 kill runs, and the
 # evidence matrix. Exits non-zero rather than printing and succeeding, so a stub
 # can never be chained into something that then reports success.
+# All 42 executions, strictly sequentially, with the fault injector armed. Never in
+# parallel: broker_stop_start takes down the shared broker, so a concurrent execution
+# would meet an outage nobody scheduled for it and the evidence would not know.
+#
+# Exits 3 when the matrix is void under a pre-registered validity rule, which is a
+# different thing from a claim failing and must not be chained into something that
+# reports a result.
 run-matrix:
-	@echo "$@: not implemented until PB-T3 (PB-T2 injects no fault and runs no kill run)."
-	@exit 2
+	$(BIN)/python scripts/run_matrix.py

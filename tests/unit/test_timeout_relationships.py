@@ -1,8 +1,8 @@
 """The timeouts have to hold specific relationships to each other, so they are gated.
 
 PB-T3 puts six durations in play at once: a 25s broker outage, a 15s delivery
-deadline, a 10s hold at the fault point, a 6s consumer session, a 60s flush and poll
-bound, and a 60s transaction timeout owned by the client pin. Several of them are
+deadline, a 10s hold at the fault point, a 45s consumer session, a 120s stall budget,
+and a 60s transaction timeout owned by the client pin. Several of them are
 nested inside others, and every one of those nestings is load-bearing.
 
 They were module literals in PB-T2, where nothing was nested inside anything and the
@@ -233,6 +233,27 @@ def test_the_batch_wait_is_short_enough_to_not_dominate_a_run(settings: Settings
     mean roughly N rather than up to N plus one batch wait.
     """
     assert settings.consume_stall_budget_ms >= 10 * settings.consume_batch_wait_ms
+
+
+def test_the_consumer_survives_a_broker_outage_as_a_group_member(settings: Settings) -> None:
+    """Otherwise the broker fault becomes a different fault than the one scheduled.
+
+    A session shorter than the outage means the coordinator evicts the consumer while
+    the broker is down, on every broker run, and send_offsets_to_transaction fails with
+    UNKNOWN_MEMBER_ID on the way back. The measurement would then be of an outage plus
+    a group eviction, with the eviction caused by an apparatus setting rather than by
+    the delivery configuration under test.
+
+    Found by running a broker fault rather than by reading the code: the first value
+    chosen here was 6000, picked for wall clock, and it evicted the consumer every time.
+
+    Proven red by lowering the session timeout below the outage.
+    """
+    assert settings.consumer_session_timeout_ms > settings.broker_outage_ms, (
+        f"a {settings.consumer_session_timeout_ms}ms session does not outlast a "
+        f"{settings.broker_outage_ms}ms outage, so the consumer is evicted mid-fault and "
+        f"the run measures an outage plus an eviction"
+    )
 
 
 def test_the_session_timeout_is_at_or_above_the_broker_floor(settings: Settings) -> None:

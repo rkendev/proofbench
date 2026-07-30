@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -66,6 +66,7 @@ from proofbench.core.txn import (
     TransactionLedger,
 )
 from proofbench.core.window import (
+    WindowFacts,
     WindowState,
     assert_boundary_discriminates,
     is_within_fault_window,
@@ -95,6 +96,16 @@ STATUS_NOT_CLEAN = "not_clean"
 STATUS_APPARATUS_FAILURE = "apparatus_failure"
 
 EVIDENCE_DISCLAIMER = "apparatus check, not a claim result"
+
+# The window state a run with no fault has: none of the four conditions hold, so every
+# delivery failure on such a run is an apparatus failure. Named rather than inlined so
+# the default is visibly the strict one.
+_NO_WINDOW = WindowFacts(
+    entry_names_a_fault=False,
+    fault_has_fired=False,
+    window_closed=True,
+    budget_exhausted=True,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -338,6 +349,45 @@ def resolve_delivery_error(
     return outcome
 
 
+def resolve_transactional_error(
+    exc: Any,
+    state: WindowState,
+    budget: RecoveryBudget,
+) -> TransactionOutcome:
+    """The same boundary, for a failed transactional call rather than a failed send.
+
+    ADR-0003 section 6 is written almost entirely about this case: "a broker restart
+    makes ``commit_transaction`` retriable while the coordinator re-elects", and fencing
+    surfaces as a fatal error on a transactional call. But
+    ``send_offsets_to_transaction`` and ``commit_transaction`` raise ``KafkaException``
+    directly rather than reporting through the delivery callback, so they took a
+    completely different route out of the phase and never reached the contract at all.
+
+    The boundary is identical, deliberately. Whether a failed transactional call is
+    part of an injected fault or a break in the apparatus is the same question with the
+    same four conditions, and answering it twice in two places is how the two answers
+    start to differ.
+    """
+    assert_boundary_discriminates()
+    if not is_within_fault_window(state):
+        raise DeliveryFailure(
+            f"a transactional call failed: {exc}. This is outside any expected fault "
+            f"window, because {why_apparatus_failure(state)}. The run reports no result."
+        ) from exc
+
+    error = exc.args[0] if exc.args else None
+    if error is None or not hasattr(error, "retriable"):
+        # Nothing classifiable. ADR-0003 section 6: an error matching none of the three
+        # classes is treated as fatal rather than retried, because in a measurement
+        # harness an unclassified condition must not be folded into a number.
+        budget.record(TransactionOutcome.REINIT_PRODUCER, f"unclassifiable failure: {exc}")
+        return TransactionOutcome.REINIT_PRODUCER
+
+    outcome = classify(error)
+    budget.record(outcome, f"transactional call failed inside the fault window: {exc}")
+    return outcome
+
+
 def load_schedule_entry(run_id: int, settings: Settings) -> dict[str, Any]:
     """Read one entry from the committed, frozen schedule.
 
@@ -523,6 +573,8 @@ def process(
     ledger: TransactionLedger,
     is_control: bool = False,
     injector: SagaFaultInjector | None = None,
+    window: WindowState | None = None,
+    progress: Callable[[int], None] | None = None,
 ) -> dict[str, int]:
     """Consume the input topic and write both sinks. Returns records sent per sink.
 
@@ -560,6 +612,9 @@ def process(
     from confluent_kafka import Consumer, KafkaError, TopicPartition
 
     injector = injector if injector is not None else NoFault()
+    # No fault window on a run that names no fault, which is what makes every delivery
+    # failure on such a run an apparatus failure.
+    window = window if window is not None else _NO_WINDOW
 
     consumer = Consumer(dict(configuration.consumer))
     sender = _Sender(dict(configuration.sink_producer), ledger, PHASE_PROCESS, ROLE_SINK)
@@ -593,6 +648,107 @@ def process(
     # exactly like a run with the constant wired up. Measured, not assumed.
     largest_batch = 0
 
+    def rebuild_sender() -> None:
+        """Discard a dead producer and construct a new one with the SAME id.
+
+        ADR-0003 section 6's third response, and the reason the transactional id is
+        stable per run, configuration and role. ``init_transactions`` bumps the epoch
+        for that id and aborts whatever the previous epoch left open, which is the only
+        mechanism that cleans up after a producer that died mid-transaction. Minting a
+        new id would leave the dead epoch's transaction open until
+        ``transaction.timeout.ms`` expired, with the Last Stable Offset parked behind it
+        and every read_committed consumer blocked on that partition.
+        """
+        nonlocal sender, writer
+        sender.txn.forget_open_transaction()
+        sender = _Sender(dict(configuration.sink_producer), ledger, PHASE_PROCESS, ROLE_SINK)
+        writer = FaultInjectingWriter(sender, injector, lambda: sender.txn.transaction_open)
+        if transactional:
+            sender.txn.init()
+
+    def write_group_with_recovery() -> None:
+        """Write one saga's group, applying the ADR-0003 section 6 contract on failure.
+
+        This is where the fault-window boundary is actually consulted, and it was
+        missing until a broker-fault smoke run walked into it: ``resolve_delivery_error``
+        existed, was tested from both directions, and was called from nowhere at all, so
+        a ``DeliveryError`` propagated straight out of the phase and every broker
+        execution ended unscored. Exactly the defect the boundary was written to
+        prevent, reintroduced by not wiring it up.
+
+        The boundary decides whether a failure is part of the fault or a break in the
+        apparatus; the contract decides what to do about the ones that are part of it.
+        Out-of-window failures raise through, which is what ends the run honestly.
+        """
+        from confluent_kafka import KafkaException
+
+        def close_any_open_transaction() -> None:
+            """Leave the producer with no transaction open, so a replay can begin one.
+
+            Mechanics, not reclassification. The recovery budget records what
+            ``classify`` decided, because that is the contract's answer and it is
+            evidence. This is what makes a replay possible at all, and the transaction
+            ledger counts it because it is an abort that actually happened. Two records
+            of two different things, both true.
+            """
+            if not sender.txn.transaction_open:
+                return
+            try:
+                sender.txn.abort()
+            except KafkaException:
+                # The producer could not even abort, so it is past recovering through
+                # this object. ADR-0003 section 6's third response: discard it and
+                # rebuild with the same transactional id.
+                rebuild_sender()
+
+        for _ in range(budget.max_reinits + 2):
+            try:
+                write_group()
+                return
+            except KafkaException as exc:
+                # A failed transactional call, which ADR-0003 section 6 is mostly
+                # about: "a broker restart makes commit_transaction retriable while the
+                # coordinator re-elects". send_offsets_to_transaction and
+                # commit_transaction raise here rather than through the delivery
+                # callback, so without this branch they bypassed the contract entirely
+                # and ended the run unscored. Found by a broker smoke run, not by
+                # reading the code.
+                outcome = resolve_transactional_error(exc, window, budget)
+            except DeliveryError as failure:
+                outcome = resolve_delivery_error(failure, window, budget)
+
+            if outcome is TransactionOutcome.REINIT_PRODUCER:
+                rebuild_sender()
+                continue
+
+            # Deliberately NO branch on the configuration here, and that is a decision
+            # rather than an omission. An earlier version returned early for the
+            # baseline, on the reasoning that a non-transactional producer has nothing
+            # to abort and nothing to replay, so the records simply do not land and the
+            # loss is the measurement. That reasoning is defensible and the code was
+            # wrong anyway: choosing to retry produces duplication and choosing not to
+            # produces loss, so a configuration branch here would be the HARNESS
+            # deciding which failure mode the baseline exhibits.
+            #
+            # INV-P3 settles it. The recovery code is identical in both configurations
+            # and the outcomes diverge only through the allow-listed settings: under the
+            # good configuration the replay is covered by a transaction and an idempotent
+            # producer, so nothing duplicates; under the baseline it is covered by
+            # neither, so it does. That divergence is produced by enable.idempotence and
+            # transactional.id, which is exactly where CLAIMS.md puts it.
+            #
+            # Any transaction left open by the failed attempt has to be closed before
+            # the group is written again, or the replay begins one inside another.
+            # Found by a broker smoke run: a retriable failure after begin left the
+            # transaction open and the retry hit the saga-boundary invariant.
+            close_any_open_transaction()
+            continue
+
+        raise DeliveryFailure(
+            "the sink write did not succeed within the recovery budget, so the run "
+            "reports no result rather than a partial one"
+        )
+
     def write_group() -> None:
         """Write the buffered saga to both sinks and commit the way the config says.
 
@@ -620,6 +776,15 @@ def process(
         # work that was written but never committed.
         assert last_position is not None, "a group cannot close before a record arrived"
         last_applied = last_position.offset
+        # Recorded durably as the phase goes, because a SIGKILLed phase cannot write
+        # down how far it got and the attributability invariant needs exactly that.
+        # Without it the gap between a killed attempt and its restart is unknown, every
+        # baseline loss is unattributable, and a real measurement is reported as an
+        # apparatus failure. Found by running a consumer-kill run: 76 lost side effects,
+        # the exact committed-but-not-applied window, with no gap recorded to explain
+        # them.
+        if progress is not None:
+            progress(last_position.offset)
         buffered = []
         buffered_saga = None
         buffered_index = None
@@ -671,7 +836,7 @@ def process(
                 payload: dict[str, Any] = json.loads(bytes(message.value()).decode("utf-8"))
                 saga_id = str(payload["saga_id"])
                 if buffered and saga_id != buffered_saga:
-                    write_group()
+                    write_group_with_recovery()
                     sagas_done += 1
 
                 buffered.append((str(payload["idempotency_key"]), bytes(message.value())))
@@ -689,7 +854,7 @@ def process(
             # apparatus failure and manufacture loss out of a real measurement.
             if len(buffered) < settings.steps_per_saga:
                 partial_groups += 1
-            write_group()
+            write_group_with_recovery()
             sagas_done += 1
 
         # PB-T2 asserted sagas_done == expected_sagas here. That assertion could not
@@ -715,10 +880,10 @@ def process(
     finally:
         consumer.close()
 
-    # The budget is threaded through so a fault run can record what it had to do
-    # to get here. PB-T2 injects no fault, so it stays empty, and an empty
-    # recovery history in the control evidence is itself worth recording.
-    del budget
+    # PB-T2 deleted the budget here, because nothing consumed it: no fault was
+    # injected, so no recovery could happen and an empty history was the only possible
+    # outcome. It is consumed now, by the recovery loop above, and deleting it would
+    # unbind the name for that closure.
     return {
         "sink_a": per_sink[sink_a],
         "sink_b": per_sink[sink_b],

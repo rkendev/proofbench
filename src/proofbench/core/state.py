@@ -53,6 +53,17 @@ OUTCOME_COMPLETED = "completed"
 OUTCOME_KILLED = "killed"
 OUTCOME_FAILED = "apparatus_failure"
 
+# Written when a phase begins, and replaced when it ends. A record still saying
+# ``started`` after the process is gone IS the record of a kill: a SIGKILLed phase
+# cannot write its own epitaph, so it writes it in advance and erases it if it
+# survives.
+#
+# Without this, nothing records a killed attempt at all. The arm-once cross-check and
+# the crash-loop backstop both count killed attempts, and both would have counted zero
+# forever: the guard would have been correct and unreachable. Found by running the
+# first real SIGKILL through the phase worker rather than by reading the code.
+OUTCOME_STARTED = "started"
+
 
 @dataclass(frozen=True, slots=True)
 class Attempt:
@@ -155,7 +166,29 @@ class RunState:
         return so_far + 1
 
     def record_attempt(self, attempt: Attempt) -> None:
+        """Append an attempt, or replace the in-progress record for the same one.
+
+        A phase writes ``started`` before it begins and its real outcome when it ends,
+        so the two are the same attempt rather than two.
+        """
+        for index, existing in enumerate(self.attempts):
+            if existing.phase == attempt.phase and existing.number == attempt.number:
+                self.attempts[index] = attempt
+                return
         self.attempts.append(attempt)
+
+    def killed_attempts(self, phase: str) -> list[Attempt]:
+        """Attempts that ended without recording an outcome, which means they died.
+
+        ``started`` and ``killed`` are both counted. A record left at ``started`` is a
+        process that never got to write anything else, and SIGKILL is the only thing in
+        this harness that does that.
+        """
+        return [
+            attempt
+            for attempt in self.attempts_for(phase)
+            if attempt.outcome in (OUTCOME_STARTED, OUTCOME_KILLED)
+        ]
 
     def offset_gaps(self, phase: str = PHASE_PROCESS) -> list[tuple[int, int]]:
         """Half-open input-topic offset ranges that no attempt ever processed.

@@ -56,7 +56,7 @@ from typing import Any, Protocol, runtime_checkable
 from proofbench.config import Settings
 from proofbench.core.evidence import write_json
 from proofbench.core.recovery import ApparatusFailure
-from proofbench.core.state import OUTCOME_KILLED, RunState
+from proofbench.core.state import RunState
 
 # The fault menu, verbatim from CLAIMS.md, mapped to the phase that hosts each one.
 #
@@ -329,9 +329,7 @@ def select_injector(
     if PHASE_OF_FAULT.get(fault_type) != phase:
         return NoFault()
 
-    killed_before = sum(
-        1 for attempt in state.attempts_for(phase) if attempt.outcome == OUTCOME_KILLED
-    )
+    killed_before = len(state.killed_attempts(phase))
     if state.fault_fired:
         return NoFault()
     if killed_before:

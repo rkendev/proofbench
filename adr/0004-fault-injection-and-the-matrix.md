@@ -487,6 +487,52 @@ configuration's broker runs cannot be executed by this apparatus. That ships C1 
 not-evaluable at its pre-registered denominator, and it is the outcome if the repair
 above does not hold.
 
+### The ruling, and the repair as built
+
+**Owner's ruling, 2026-07-30:** the classification is accepted. Polling is not an
+addition to section 6's replay but a precondition of it: a saga replay under the good
+configuration necessarily commits offsets inside the transaction, that needs group
+membership, and membership is restored only by a poll. The code was attempting the
+frozen action and failing on a missing mechanical prerequisite.
+
+The honest non-repair alternative was rejected as **the wrong honesty**: reporting C1 as
+not-evaluable when the cause is a recovery loop that never polls would be publishing an
+apparatus bug as a limit of knowledge.
+
+Three conditions were set and all three are met.
+
+**The poll is unconditional in the shared recovery path.** No branch on the
+configuration. The baseline never reaches the abortable-error branch at all, because it
+makes no transactional call, so an unconditional poll costs it nothing while keeping
+INV-P3's control-flow gate clean. That gate still passes, and a seeded `if
+transactional` guard on the rejoin reds the new gate.
+
+**What happens to the records the rejoin poll returns**, which is the part that could
+have invented a number. Serving a queue returns whatever is on it. Dropping those records
+would manufacture loss; handing them to the processing stream a second time would
+manufacture duplication. Either would be the apparatus producing a figure out of its own
+recovery rather than out of the configuration under test. They go to a pending list, and
+the main loop drains that before calling `consume` again, so nothing is dropped and
+nothing is seen twice. Offset order is preserved because anything the poll returned is
+strictly earlier than anything a later `consume` would return, and pending records go
+through the same loop body, so a partition-EOF event pulled off by the rejoin still ends
+the drain.
+
+**The diagnosis is now a gate rather than a story, and it does not rely on a broker
+restart.** Runs 09 and 12 survived the same fault on a race, so a single passing run
+proves nothing and a test whose setup is itself a race would inherit that. Membership is
+invalidated deterministically instead: a member joins, leaves, and is replaced, and the
+metadata captured before the replacement is exactly the stale membership a restart
+produces. Measured: `send_offsets_to_transaction` with that metadata fails with
+`UNKNOWN_MEMBER_ID`, the void's exact error, and succeeds with membership obtained after
+a poll.
+
+Proven red four ways: removing the rejoin, guarding it with `if transactional`, dropping
+the pending records, and putting a `poll` back on the batch path. The last of these
+tightened an existing gate rather than relaxing it: the frozen-batch-size rule now
+asserts that any `poll` in the process phase lies inside `rejoin_consumer`, so the batch
+still comes only from `consume`.
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose

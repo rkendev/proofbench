@@ -95,6 +95,12 @@ STATUS_CLEAN = "clean"
 STATUS_NOT_CLEAN = "not_clean"
 STATUS_APPARATUS_FAILURE = "apparatus_failure"
 
+# How many times the recovery path serves the consumer's queue to let a stale group
+# membership be restored. A rejoin is a JoinGroup and a SyncGroup round trip once the
+# broker is answering, so a few short polls are ample; the bound exists so a consumer
+# that cannot rejoin fails the run rather than spinning.
+_REJOIN_POLL_ATTEMPTS = 5
+
 EVIDENCE_DISCLAIMER = "apparatus check, not a claim result"
 
 # The window state a run with no fault has: none of the four conditions hold, so every
@@ -671,6 +677,8 @@ def process(
     largest_batch = 0
     # Idempotency keys whose delivery failed permanently INSIDE an open fault window.
     permanently_failed: set[str] = set()
+    # Records the rejoin poll pulled off the queue, awaiting the main loop.
+    pending: list[Any] = []
 
     def rebuild_sender() -> None:
         """Discard a dead producer and construct a new one with the SAME id.
@@ -705,6 +713,45 @@ def process(
         Out-of-window failures raise through, which is what ends the run honestly.
         """
         from confluent_kafka import KafkaException
+
+        def rejoin_consumer() -> None:
+            """Serve the consumer's queue so a stale group membership is restored.
+
+            The cycle 1 void. A broker restart invalidates the consumer's group
+            membership; ``send_offsets_to_transaction`` reads that membership from
+            ``consumer_group_metadata()``; and a consumer rejoins its group only when
+            the client is polled. The recovery loop replayed the sink write without ever
+            polling, so the membership was stale on the first retry and identically stale
+            on every retry after it. Four good broker runs exhausted the budget on the
+            same error and the matrix voided.
+
+            ADR-0003 section 6 fixes the response to an abortable error as "abort, then
+            replay that saga". Under the good configuration a saga replay necessarily
+            commits offsets inside the transaction, which needs group membership, which
+            needs a poll. The poll is not an addition to the frozen action: it is a
+            mechanical precondition of it.
+
+            **Unconditional, with no branch on the configuration.** The baseline never
+            reaches the abortable-error branch at all, because it makes no transactional
+            call, so an unconditional poll costs it nothing while keeping INV-P3's
+            control-flow gate clean. A configuration branch here would be a difference
+            in the recovery path, which is exactly what that gate exists to forbid.
+
+            **What happens to records the poll returns**, which is the part that could
+            invent a number. Dropping them would manufacture loss; handing them to the
+            processing stream a second time would manufacture duplication. Neither is
+            acceptable, so they go to ``pending`` and the main loop drains that before
+            calling ``consume`` again. Offset order is preserved because anything the
+            rejoin poll returns is strictly earlier than anything a later ``consume``
+            would return.
+            """
+            for _ in range(_REJOIN_POLL_ATTEMPTS):
+                message = consumer.poll(settings.consume_batch_wait_ms / 1000.0)
+                if message is not None:
+                    # Not dropped, not re-processed: queued for the main loop, which
+                    # handles data records and the partition-EOF event identically to
+                    # anything consume() hands it.
+                    pending.append(message)
 
         def close_any_open_transaction() -> None:
             """Leave the producer with no transaction open, so a replay can begin one.
@@ -770,6 +817,10 @@ def process(
             # Found by a broker smoke run: a retriable failure after begin left the
             # transaction open and the retry hit the saga-boundary invariant.
             close_any_open_transaction()
+            # And the consumer is given the chance to rejoin its group before the
+            # replay, because a saga replay commits offsets and that needs membership.
+            # Unconditional: see rejoin_consumer. This is the cycle 1 void's repair.
+            rejoin_consumer()
             continue
 
         raise DeliveryFailure(
@@ -822,10 +873,16 @@ def process(
         reached_end = False
         idle_since: float | None = None
         while not reached_end:
-            batch = consumer.consume(
-                num_messages=settings.consumer_max_batch_records,
-                timeout=settings.consume_batch_wait_ms / 1000.0,
-            )
+            if pending:
+                # Records the rejoin poll pulled off the queue. Drained before anything
+                # new is consumed, so nothing is dropped and nothing is seen twice.
+                batch = list(pending)
+                pending.clear()
+            else:
+                batch = consumer.consume(
+                    num_messages=settings.consumer_max_batch_records,
+                    timeout=settings.consume_batch_wait_ms / 1000.0,
+                )
             if not batch:
                 # No progress on this call. That is ordinary while the broker is down
                 # during an injected outage, or while a restarted consumer waits out

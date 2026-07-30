@@ -105,6 +105,7 @@ def test_the_frozen_batch_size_is_what_process_asks_for() -> None:
     alternative needs a broker and a kill. What matters is that the call is
     ``consume`` with the frozen number, not ``poll`` with none.
     """
+    import ast
     import inspect
 
     from proofbench.core import run
@@ -116,9 +117,36 @@ def test_the_frozen_batch_size_is_what_process_asks_for() -> None:
         "record. ADR-0002 maps the constant to consume's num_messages argument."
     )
     assert "num_messages=settings.consumer_max_batch_records" in source
-    assert "consumer.poll(" not in source, (
-        "process still polls somewhere, which hands over one record at a time and "
-        "defeats the frozen batch size"
+
+    # The batch must come from consume, never from poll, or the frozen size reaches no
+    # client. A poll DOES appear in process now, in the rejoin path added to repair the
+    # cycle 1 void, so the rule is tightened rather than relaxed: any poll must be
+    # inside rejoin_consumer, which serves the queue to restore group membership and
+    # never feeds the batch.
+    tree = ast.parse(source)
+    rejoin = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.FunctionDef) and node.name == "rejoin_consumer"
+    )
+    rejoin_polls = {
+        id(node)
+        for node in ast.walk(rejoin)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "poll"
+    }
+    stray = [
+        ast.unparse(node)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "poll"
+        and id(node) not in rejoin_polls
+    ]
+    assert not stray, (
+        f"process polls outside the rejoin path: {stray}. A poll on the batch path hands "
+        f"over one record at a time and defeats the frozen consumer_max_batch_records."
     )
 
 
@@ -364,3 +392,66 @@ def test_grouping_is_driven_by_the_payload_not_by_arrival_position() -> None:
     repeated = [_record(9, 0), _record(9, 1), _record(10, 0), _record(9, 0)]
     groups = _group_by_saga_id(repeated)
     assert [len(group) for group in groups] == [2, 1, 1]
+
+
+# --------------------------------------------------------------------------
+# What the rejoin poll does with the records it pulls off the queue
+# --------------------------------------------------------------------------
+
+
+def test_the_rejoin_poll_neither_drops_nor_reprocesses_a_record() -> None:
+    """The part of the cycle 1 repair that could have invented a number.
+
+    The rejoin poll serves the consumer's queue, and serving a queue returns whatever
+    is on it. Dropping those records would manufacture loss; handing them to the
+    processing stream a second time would manufacture duplication. Either would be the
+    apparatus producing a figure out of its own recovery rather than out of the
+    configuration under test, which is exactly what INV-P2 exists to prevent.
+
+    The handling: they go to a pending list, and the main loop drains that before
+    calling consume again. Read out of the source because the alternative needs a live
+    broker mid-rebalance, and a test that could only run there is a test nobody runs.
+    """
+    import inspect
+
+    from proofbench.core import run
+
+    source = inspect.getsource(run.process)
+
+    # The poll appends rather than discarding.
+    assert "pending.append(message)" in source, (
+        "the rejoin poll discards what it pulls off the queue, which manufactures loss"
+    )
+    # The main loop drains pending BEFORE consuming anything new, so nothing is seen
+    # twice and offset order is preserved: anything the poll returned is strictly
+    # earlier than anything a later consume would return.
+    assert "if pending:" in source
+    assert source.index("batch = list(pending)") < source.index("batch = consumer.consume(")
+    assert "pending.clear()" in source
+
+
+def test_pending_records_go_through_the_same_loop_body() -> None:
+    """So a partition-EOF event pulled off by the rejoin poll still ends the drain.
+
+    The rejoin poll cannot distinguish a data record from an EOF event and must not
+    try. Both are put on the pending list and both are handled by the branch that
+    already handles everything consume() returns.
+    """
+    import ast
+    import inspect
+
+    from proofbench.core import run
+
+    tree = ast.parse(inspect.getsource(run.process))
+    # Exactly one `for message in batch:` loop, so pending and consumed records cannot
+    # be handled by two different code paths.
+    loops = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.For)
+        and isinstance(node.target, ast.Name)
+        and node.target.id == "message"
+        and isinstance(node.iter, ast.Name)
+        and node.iter.id == "batch"
+    ]
+    assert len(loops) == 1, f"expected one batch-handling loop, found {len(loops)}"

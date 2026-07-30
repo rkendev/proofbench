@@ -410,21 +410,37 @@ def test_the_rejoin_poll_can_return_nothing_to_drop_or_reprocess() -> None:
     **Hazard 1, dropping.** Nothing can be dropped because nothing can be returned: the
     partitions are paused for the duration of the rejoin poll.
 
-    **Hazard 2, double-feeding.** Nothing can be re-fed for the same reason, and the
-    queue that made it possible is gone rather than made safe. If a record is returned
-    in spite of the pause, the run is abandoned rather than the record being kept or
-    discarded, because either would be the apparatus inventing a number.
+    **Hazard 2, double-feeding.** Nothing can be re-fed for the same reason. If a record
+    is returned in spite of the pause, the run is abandoned rather than the record being
+    kept or discarded, because either would be the apparatus inventing a number.
+
+    A correction recorded rather than quietly dropped: the first version of this test
+    blamed the rejoin queue for the cycle 2 five-record group. The instrumented
+    reproduction refuted that. The duplication came from a rebalance re-delivering
+    records the batch loop had already buffered, and removing the queue changed nothing.
+    The queue is still gone, because it was a second way for the same thing to happen,
+    but it was never the cause.
     """
+    import ast
     import inspect
 
     from proofbench.core import run
 
     source = inspect.getsource(run.process)
 
-    # Hazard 2: the mechanism is removed, not guarded.
-    assert "pending" not in source, (
-        "the pending queue is back. It is what let a re-delivered record be appended to "
-        "a buffer that already held it, producing the cycle 2 five-record group."
+    # Hazard 2: no queue variable exists, checked by AST so a comment mentioning the
+    # historical queue does not satisfy or break the rule.
+    tree = ast.parse(source)
+    assigned = {
+        target.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Name)
+    }
+    assert "pending" not in assigned, (
+        "a rejoin queue is back. It was a second route to appending a record the batch "
+        "loop already held, and it is deliberately absent."
     )
 
     body = source[source.index("def rejoin_consumer") : source.index("def close_any_open")]

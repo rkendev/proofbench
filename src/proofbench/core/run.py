@@ -675,6 +675,11 @@ def process(
     # back as one record would have a one-record commit-ahead window and would look
     # exactly like a run with the constant wired up. Measured, not assumed.
     largest_batch = 0
+    # The highest input offset handed to this phase, and how many times the
+    # consumer's position moved backwards. A backwards move is a rebalance
+    # re-delivering records, which is evidence about the run and is recorded.
+    last_seen_offset: int | None = None
+    redeliveries = 0
     # Idempotency keys whose delivery failed permanently INSIDE an open fault window.
     permanently_failed: set[str] = set()
 
@@ -952,6 +957,30 @@ def process(
                         break
                     raise ApparatusFailure(f"consuming the input topic failed: {error}")
 
+                offset = int(message.offset())
+                if last_seen_offset is not None and offset <= last_seen_offset:
+                    # The consumer's position moved BACKWARDS, which means a rebalance
+                    # reset it to the last committed offset and Kafka is re-delivering
+                    # records this phase has already buffered.
+                    #
+                    # This is the cycle 2 artifact's actual mechanism, observed rather
+                    # than inferred: after the broker restart the consumer rejoined its
+                    # group, resumed from the committed offset, and re-delivered offsets
+                    # 664 and 665 while `buffered` still held exactly those two records.
+                    # The loop appended them again and the saga went out as a five-record
+                    # group. Neither the pending queue nor the rejoin poll caused it, and
+                    # removing both changed nothing.
+                    #
+                    # The partially built group is discarded rather than kept. Nothing is
+                    # lost by doing so: re-delivery starts from the committed offset, so
+                    # every record of the in-progress saga arrives again. Keeping it is
+                    # what duplicates.
+                    redeliveries += 1
+                    buffered = []
+                    buffered_saga = None
+                    buffered_index = None
+                last_seen_offset = offset
+
                 if resumed_at is None:
                     # Where Kafka's own mechanism put us. ADR-0003 section 7 forbids
                     # calling seek, so this is an observation of where the committed
@@ -1015,6 +1044,7 @@ def process(
         "sagas_processed": sagas_done,
         "partial_groups": partial_groups,
         "largest_batch": largest_batch,
+        "redeliveries": redeliveries,
         "permanently_failed_keys": sorted(permanently_failed),
         "resumed_at_offset": -1 if resumed_at is None else resumed_at,
         "last_applied_offset": -1 if last_applied is None else last_applied,

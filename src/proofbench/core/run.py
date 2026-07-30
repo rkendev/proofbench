@@ -42,6 +42,14 @@ from proofbench.core.recovery import ApparatusFailure, RecoveryBudget
 from proofbench.core.saga import Saga, expand_sagas, expected_ledger, observed_record
 from proofbench.core.topics import provision, read_to_end
 from proofbench.core.trace import load_trace
+from proofbench.core.txn import (
+    PHASE_INGEST,
+    PHASE_PROCESS,
+    ROLE_INGEST,
+    ROLE_SINK,
+    AccountedProducer,
+    TransactionLedger,
+)
 from proofbench.interfaces.ledger import LedgerDiff, SideEffectRecord
 
 # How long a transactional call may take before the client gives up. Passed
@@ -99,6 +107,7 @@ class RunResult:
     expected: tuple[SideEffectRecord, ...]
     sinks: tuple[SinkOutcome, ...]
     budget: RecoveryBudget
+    transactions: TransactionLedger
     status: str
 
     @property
@@ -106,7 +115,15 @@ class RunResult:
         return self.status == STATUS_CLEAN
 
     def summary(self) -> dict[str, Any]:
-        """The run summary written into evidence and printed by the operator script."""
+        """The run summary written into evidence and printed by the operator script.
+
+        ``transactions_committed`` and ``transactions_aborted`` keep the names
+        ADR-0003 section 3 gives them, but they are now totals over calls the run
+        actually made rather than a formula applied to the saga count. The
+        ``transactions`` block carries the per-phase, per-role breakdown, because
+        an abort in ingest and an abort in process say different things about what
+        the fault did and a single integer cannot tell them apart.
+        """
         return {
             "artifact": EVIDENCE_DISCLAIMER,
             "run_id": self.run_id,
@@ -116,18 +133,12 @@ class RunResult:
             "status": self.status,
             "is_clean": self.is_clean,
             "expected_records": len(self.expected),
-            "transactions_committed": _committed(self),
-            "transactions_aborted": self.budget.aborts,
+            "transactions_committed": self.transactions.committed,
+            "transactions_aborted": self.transactions.aborted,
+            "transactions": self.transactions.to_jsonable(),
             "recovery": self.budget.to_jsonable(),
             "sinks": [sink.to_jsonable() for sink in self.sinks],
         }
-
-
-def _committed(result: RunResult) -> int:
-    """Transactions the run committed, which is one per saga when transactional."""
-    if not result.configuration.transactional:
-        return 0
-    return len(result.expected) // int(result.schedule_entry["steps_per_saga"])
 
 
 class DeliveryFailure(ApparatusFailure):
@@ -149,12 +160,23 @@ class _Sender:
     wearing the costume of a finding, so it is caught here and raised instead.
     """
 
-    def __init__(self, conf: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        conf: dict[str, Any],
+        ledger: TransactionLedger,
+        phase: str,
+        role: str,
+    ) -> None:
         from confluent_kafka import Producer
 
         self.producer = Producer(conf)
         self.errors: list[str] = []
         self.sent = 0
+        # Constructed for both configurations, exercised only by the transactional
+        # one. Keeping it unconditional is what lets the two configurations share
+        # one sender: under the baseline nothing ever calls it and its counts stay
+        # at zero, which is then an observation rather than an assumption.
+        self.txn = AccountedProducer(self.producer, ledger, phase, role, _TXN_TIMEOUT_S)
 
     def _on_delivery(self, error: Any, message: Any) -> None:
         if error is not None:
@@ -202,29 +224,36 @@ def load_schedule_entry(run_id: int, settings: Settings) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 
 
-def ingest(configuration: RunConfiguration, sagas: tuple[Saga, ...]) -> int:
+def ingest(
+    configuration: RunConfiguration,
+    sagas: tuple[Saga, ...],
+    ledger: TransactionLedger,
+) -> int:
     """Produce the run's side effects to the input topic. Returns records sent.
 
     Transactional under the good configuration, one transaction per saga, because
     CLAIMS.md names an idempotent transactional producer and the fault menu
     includes producer_sigkill_mid_send, which kills exactly this producer. A
     half-sent saga has to abort rather than half-land.
+
+    Every transactional call goes through ``sender.txn``, which counts it. There is
+    no path here that brackets a transaction without recording that it did.
     """
-    sender = _Sender(dict(configuration.ingest_producer))
+    sender = _Sender(dict(configuration.ingest_producer), ledger, PHASE_INGEST, ROLE_INGEST)
     transactional = configuration.transactional
     if transactional:
-        sender.producer.init_transactions(_TXN_TIMEOUT_S)
+        sender.txn.init()
 
     for saga in sagas:
         if transactional:
-            sender.producer.begin_transaction()
+            sender.txn.begin()
         for step in saga.steps:
             sender.produce(
                 configuration.topics.input, step.record.idempotency_key, step.payload_bytes()
             )
         sender.flush()
         if transactional:
-            sender.producer.commit_transaction(_TXN_TIMEOUT_S)
+            sender.txn.commit()
 
     return sender.sent
 
@@ -281,6 +310,7 @@ def process(
     settings: Settings,
     expected_sagas: int,
     budget: RecoveryBudget,
+    ledger: TransactionLedger,
 ) -> dict[str, int]:
     """Consume the input topic and write both sinks. Returns records sent per sink.
 
@@ -298,10 +328,10 @@ def process(
     from confluent_kafka import Consumer, KafkaError, TopicPartition
 
     consumer = Consumer(dict(configuration.consumer))
-    sender = _Sender(dict(configuration.sink_producer))
+    sender = _Sender(dict(configuration.sink_producer), ledger, PHASE_PROCESS, ROLE_SINK)
     transactional = configuration.transactional
     if transactional:
-        sender.producer.init_transactions(_TXN_TIMEOUT_S)
+        sender.txn.init()
 
     sink_a, sink_b = configuration.topics.sinks
     per_sink: dict[str, int] = {sink_a: 0, sink_b: 0}
@@ -334,7 +364,7 @@ def process(
                 continue
 
             if transactional:
-                sender.producer.begin_transaction()
+                sender.txn.begin()
             # Sink A is durable before sink B is attempted. One path, no branch.
             write_saga_to_sinks(sender, (sink_a, sink_b), buffered)
             per_sink[sink_a] += len(buffered)
@@ -343,7 +373,7 @@ def process(
                 sender.producer.send_offsets_to_transaction(
                     [last_position], consumer.consumer_group_metadata(), _TXN_TIMEOUT_S
                 )
-                sender.producer.commit_transaction(_TXN_TIMEOUT_S)
+                sender.txn.commit()
 
             buffered = []
             sagas_done += 1
@@ -403,10 +433,11 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
     sagas = expand_sagas(str(entry["seed"]), settings, trace)
     expected = expected_ledger(sagas)
     budget = RecoveryBudget()
+    transactions = TransactionLedger()
 
     provision(bootstrap, configuration.topics.all_topics())
-    ingest(configuration, sagas)
-    sent = process(configuration, settings, len(sagas), budget)
+    ingest(configuration, sagas, transactions)
+    sent = process(configuration, settings, len(sagas), budget, transactions)
 
     differ = KeyedLedgerDiffer()
     sinks: list[SinkOutcome] = []
@@ -434,6 +465,7 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
         expected=expected,
         sinks=tuple(sinks),
         budget=budget,
+        transactions=transactions,
         status=status,
     )
 

@@ -75,19 +75,63 @@ def test_the_control_run_is_clean(broker: str, settings: Settings, configuration
     assert result.is_clean
 
 
-def test_the_good_configuration_commits_one_transaction_per_saga(
+def test_the_good_configuration_commits_one_transaction_per_saga_per_phase(
     broker: str, settings: Settings
 ) -> None:
-    """The frozen transaction boundary, observed rather than assumed."""
+    """The frozen transaction boundary, observed rather than assumed.
+
+    The number changed at PB-T3, and the change is the point. PB-T2 asserted
+    ``sagas_per_run`` here, which came out of a formula that divided the record
+    count by the step count. The run in fact brackets every saga twice, once in
+    ingest and once in process, so the observed figure is twice that. The old
+    assertion was green against a derived number that was wrong, which is precisely
+    why ADR-0004 replaces derivation with observation: a count nobody took can
+    agree with an expectation nobody checked.
+    """
     result = execute_run(settings.control_run_id, GOOD, settings)
-    assert result.summary()["transactions_committed"] == settings.sagas_per_run
-    assert result.summary()["transactions_aborted"] == 0
+    summary = result.summary()
+
+    assert summary["transactions_committed"] == 2 * settings.sagas_per_run
+    assert summary["transactions_aborted"] == 0
+
+    # And where they happened, which is what makes an abort interpretable later.
+    by_scope = summary["transactions"]["by_phase_and_role"]
+    assert by_scope["ingest/ingest"]["commits"] == settings.sagas_per_run
+    assert by_scope["process/sink"]["commits"] == settings.sagas_per_run
+    assert by_scope["ingest/ingest"]["inits"] == 1
+    assert by_scope["process/sink"]["inits"] == 1
 
 
 def test_the_baseline_commits_no_transaction_at_all(broker: str, settings: Settings) -> None:
-    """It is non-transactional, which is half of what makes it the known-bad one."""
+    """It is non-transactional, which is half of what makes it the known-bad one.
+
+    Zero here is the absence of observed calls rather than a branch that reported
+    zero: the accounting is constructed for both configurations and the baseline
+    never reaches it.
+    """
     result = execute_run(settings.control_run_id, BASELINE, settings)
-    assert result.summary()["transactions_committed"] == 0
+    summary = result.summary()
+    assert summary["transactions_committed"] == 0
+    assert summary["transactions_aborted"] == 0
+    assert summary["transactions"]["by_phase_and_role"] == {}
+
+
+def test_no_transaction_stayed_open_anywhere_near_the_pinned_timeout(
+    broker: str, settings: Settings
+) -> None:
+    """Headroom is measured on the control too, so there is a clean baseline for it.
+
+    ``transaction.timeout.ms`` is owned by the client pin (ADR-0003 section 8), and
+    ADR-0004's combined bound asserts a 25s broker outage plus headroom fits inside
+    it. On a run with no fault the longest open transaction should be milliseconds,
+    and recording that here gives the matrix's figures something to be compared to.
+    """
+    result = execute_run(settings.control_run_id, GOOD, settings)
+    max_open_ms = result.summary()["transactions"]["max_open_transaction_ms"]
+    assert 0.0 < max_open_ms < 5_000.0, (
+        f"a no-fault run held a transaction open for {max_open_ms}ms, which is not "
+        f"the millisecond-scale figure a clean control should produce"
+    )
 
 
 def test_the_control_run_needed_no_recovery(broker: str, settings: Settings) -> None:

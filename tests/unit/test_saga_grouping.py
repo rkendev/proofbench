@@ -236,7 +236,7 @@ def test_the_stopping_rule_is_the_same_code_in_both_configurations() -> None:
     from proofbench.core.configs import CONFIGURATION_NAMES
 
     source = inspect.getsource(run.process)
-    tree = ast.parse(inspect.cleandoc(source))
+    tree = ast.parse(source)
 
     # Docstrings are prose and legitimately discuss both configurations by name, so
     # they are removed before the code is examined. Checking the raw text instead

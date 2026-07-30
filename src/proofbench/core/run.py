@@ -45,9 +45,16 @@ from proofbench.core.recovery import (
     RecoveryBudget,
     TransactionOutcome,
     classify,
+    resume_saga_index,
 )
 from proofbench.core.saga import Saga, expand_sagas, expected_ledger, observed_record
-from proofbench.core.topics import provision, read_to_end
+from proofbench.core.state import unattributable_losses
+from proofbench.core.topics import (
+    delete_consumer_groups,
+    provision,
+    read_to_end,
+    read_to_end_with_offsets,
+)
 from proofbench.core.trace import load_trace
 from proofbench.core.txn import (
     PHASE_INGEST,
@@ -343,12 +350,53 @@ def load_schedule_entry(run_id: int, settings: Settings) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 
 
+def durable_saga_indices(
+    configuration: RunConfiguration, steps_per_saga: int
+) -> tuple[set[int], dict[str, int]]:
+    """Read the input topic back and report which sagas are durably complete.
+
+    The ingest phase's half of the ADR-0003 section 7 resume contract: "The durable
+    state is the input topic, read back at startup." A saga counts as complete only
+    when all ``steps_per_saga`` of its steps are visible, so a half-sent saga is
+    resumed rather than skipped, and ``resume_saga_index`` then picks the first index
+    not known to be complete without stepping over a gap.
+
+    Read through the **verifier** configuration, which is identical in both
+    configurations once ``group.id`` is stripped. That is deliberate and it is not an
+    INV-P3 widening: no client map changes, an existing identical map is used at a new
+    call site, and it guarantees the durability decision is ``read_committed`` in both
+    configurations. Under the good configuration that hides the killed producer's
+    aborted transaction, so a half-sent saga is correctly seen as incomplete; under
+    the baseline ``read_committed`` returns the non-transactional writes in full, so
+    the baseline sees everything that landed. One rule, one semantics, two outcomes
+    produced by the allow-listed settings rather than by a branch.
+
+    Also returns the idempotency key to offset map, which the attributability
+    invariant consumes. Reading it here costs nothing extra: the records are already
+    in hand.
+    """
+    records = read_to_end_with_offsets(dict(configuration.verifier), configuration.topics.input)
+
+    seen: dict[int, set[int]] = {}
+    key_offsets: dict[str, int] = {}
+    for offset, value in records:
+        payload: dict[str, Any] = json.loads(value.decode("utf-8"))
+        saga_index = int(payload["saga_index"])
+        seen.setdefault(saga_index, set()).add(int(payload["step_index"]))
+        # First occurrence wins: a baseline re-send duplicates a key at a later
+        # offset, and the earlier one is the record whose fate the gap explains.
+        key_offsets.setdefault(str(payload["idempotency_key"]), offset)
+
+    complete = {index for index, steps in seen.items() if len(steps) >= steps_per_saga}
+    return complete, key_offsets
+
+
 def ingest(
     configuration: RunConfiguration,
     sagas: tuple[Saga, ...],
     ledger: TransactionLedger,
-) -> int:
-    """Produce the run's side effects to the input topic. Returns records sent.
+) -> dict[str, int]:
+    """Produce the run's side effects to the input topic, resuming if restarted.
 
     Transactional under the good configuration, one transaction per saga, because
     CLAIMS.md names an idempotent transactional producer and the fault menu
@@ -357,13 +405,34 @@ def ingest(
 
     Every transactional call goes through ``sender.txn``, which counts it. There is
     no path here that brackets a transaction without recording that it did.
+
+    **The ordering of the first two steps is load-bearing, and it is the one that is
+    easy to get backwards.** ``init_transactions`` runs *before* the durability read,
+    not after. The reason is termination rather than visibility: a producer killed
+    mid-transaction leaves that transaction open, and an open transaction parks the
+    partition's Last Stable Offset at its first offset, which a ``read_committed``
+    consumer cannot advance past. The read-back would then stall and die with a
+    message naming neither the transaction nor the cause. ``init_transactions`` with
+    the same transactional id bumps the epoch and aborts what the dead one left open,
+    the Last Stable Offset advances, and the question stops arising. The visibility
+    argument, that ``read_committed`` hides uncommitted records either way, is true
+    and is not the reason.
+
+    The read-back is unconditional rather than restricted to restarts. On a fresh run
+    the topic was just provisioned and is empty, so it costs one cheap read and
+    returns a resume point of 0, and the alternative would be a branch on "is this a
+    restart" that the two configurations would have to agree about.
     """
     sender = _Sender(dict(configuration.ingest_producer), ledger, PHASE_INGEST, ROLE_INGEST)
     transactional = configuration.transactional
     if transactional:
         sender.txn.init()
 
-    for saga in sagas:
+    steps_per_saga = len(sagas[0].steps) if sagas else 0
+    complete, _ = durable_saga_indices(configuration, steps_per_saga)
+    start = resume_saga_index(complete)
+
+    for saga in sagas[start:]:
         if transactional:
             sender.txn.begin()
         for step in saga.steps:
@@ -374,7 +443,11 @@ def ingest(
         if transactional:
             sender.txn.commit()
 
-    return sender.sent
+    return {
+        "records_sent": sender.sent,
+        "resumed_at_saga": start,
+        "durable_before": len(complete),
+    }
 
 
 # --------------------------------------------------------------------------
@@ -430,6 +503,7 @@ def process(
     expected_sagas: int,
     budget: RecoveryBudget,
     ledger: TransactionLedger,
+    is_control: bool = False,
 ) -> dict[str, int]:
     """Consume the input topic and write both sinks. Returns records sent per sink.
 
@@ -479,6 +553,12 @@ def process(
     last_position: TopicPartition | None = None
     sagas_done = 0
     partial_groups = 0
+    # Where this attempt started and where it stopped applying work. The gap between
+    # one attempt's last_applied and the next attempt's resumed_at is the set of
+    # input-topic offsets nothing ever processed, which is what makes a lost side
+    # effect attributable to a specific restart rather than merely reported.
+    resumed_at: int | None = None
+    last_applied: int | None = None
     # The largest batch the client actually handed over. Recorded because the frozen
     # consumer_max_batch_records is only "the direct determinant of C2 loss" if the
     # client really does deliver batches of that size: a run whose batches all came
@@ -493,7 +573,7 @@ def process(
         configuration-dependent code, and the offsets travel inside it under the good
         configuration because that is what C1 names.
         """
-        nonlocal buffered, buffered_saga
+        nonlocal buffered, buffered_saga, last_applied
         if transactional:
             sender.txn.begin()
         # Sink A is durable before sink B is attempted. One path, no branch.
@@ -506,6 +586,10 @@ def process(
                 [last_position], consumer.consumer_group_metadata(), _TXN_TIMEOUT_S
             )
             sender.txn.commit()
+        # Recorded only once the group is durable, so a gap can never be explained by
+        # work that was written but never committed.
+        assert last_position is not None, "a group cannot close before a record arrived"
+        last_applied = last_position.offset
         buffered = []
         buffered_saga = None
 
@@ -547,6 +631,12 @@ def process(
                         break
                     raise ApparatusFailure(f"consuming the input topic failed: {error}")
 
+                if resumed_at is None:
+                    # Where Kafka's own mechanism put us. ADR-0003 section 7 forbids
+                    # calling seek, so this is an observation of where the committed
+                    # offset left the group, not a decision the harness made.
+                    resumed_at = int(message.offset())
+
                 payload: dict[str, Any] = json.loads(bytes(message.value()).decode("utf-8"))
                 saga_id = str(payload["saga_id"])
                 if buffered and saga_id != buffered_saga:
@@ -570,10 +660,25 @@ def process(
             write_group()
             sagas_done += 1
 
-        if sagas_done != expected_sagas:
+        # PB-T2 asserted sagas_done == expected_sagas here. That assertion could not
+        # survive a restart under EITHER configuration, because a resumed phase
+        # processes only the remainder, so it would have apparatus-failed every
+        # process-phase kill run and gutted C1's coverage rather than only C2's. It is
+        # not simply deleted: it was protecting against an apparatus bug that silently
+        # dropped sagas, and removing the guard without replacing it would leave a
+        # harness defect free to surface as loss. The replacement is the
+        # attributability invariant in core/state.py, which is config-neutral and
+        # strictly stronger: every lost side effect must fall inside a recorded offset
+        # gap that a specific restart produced.
+        #
+        # The count is retained for the control run, where the whole stream is read
+        # from offset 0 and nothing may be missing. That branches on the run's identity
+        # in the frozen schedule, never on the configuration under test.
+        if is_control and sagas_done != expected_sagas:
             raise ApparatusFailure(
-                f"processed {sagas_done} sagas where the schedule says {expected_sagas}; "
-                f"the run is incomplete and reports no result"
+                f"the control run processed {sagas_done} sagas where the schedule says "
+                f"{expected_sagas}; nothing was killed, so the run is incomplete for an "
+                f"apparatus reason and reports no result"
             )
     finally:
         consumer.close()
@@ -588,6 +693,8 @@ def process(
         "sagas_processed": sagas_done,
         "partial_groups": partial_groups,
         "largest_batch": largest_batch,
+        "resumed_at_offset": -1 if resumed_at is None else resumed_at,
+        "last_applied_offset": -1 if last_applied is None else last_applied,
     }
 
 
@@ -615,8 +722,83 @@ def verify(
 # --------------------------------------------------------------------------
 
 
-def execute_run(run_id: int, configuration_name: str, settings: Settings) -> RunResult:
-    """Run one schedule entry under one configuration. Injects no fault."""
+def assert_losses_are_attributable(
+    configuration: RunConfiguration,
+    sinks: Sequence[SinkOutcome],
+    gaps: list[tuple[int, int]],
+    steps_per_saga: int,
+) -> None:
+    """Refuse to report a loss that no recorded offset gap explains.
+
+    The replacement for PB-T2's ``sagas_done == expected_sagas`` assertion, and
+    strictly stronger than it. The old check asked whether the right number of sagas
+    went through, which a restarted phase can never satisfy. This asks the question
+    the old one was really protecting: is every missing side effect accounted for by a
+    specific range of input-topic offsets that a specific restart skipped?
+
+    Under the good configuration the gap list is empty, because offsets travel inside
+    the transaction and an aborted attempt commits neither the work nor the offsets.
+    So under `good` any loss whatsoever is unattributable and the run ends as an
+    apparatus failure rather than as a C1 failure. That is the direction that matters:
+    a harness defect must not be allowed to ship as "exactly-once did not hold".
+
+    Under the baseline the gaps are the committed-but-not-applied windows that
+    commit-before-processing produced, so the loss C2 measures is explained by the
+    mechanism CLAIMS.md names rather than merely observed.
+    """
+    lost_keys = sorted({record.idempotency_key for sink in sinks for record in sink.diff.lost})
+    if not lost_keys:
+        return
+
+    _, key_offsets = durable_saga_indices(configuration, steps_per_saga)
+    unexplained = unattributable_losses(lost_keys, key_offsets, gaps)
+    if unexplained:
+        raise ApparatusFailure(
+            f"{len(unexplained)} lost side effect(s) fall outside every recorded offset "
+            f"gap, starting with {unexplained[0]!r}. Recorded gaps: {gaps or 'none'}. A "
+            f"loss the harness cannot attribute to a specific skipped offset range is an "
+            f"apparatus defect, not a measurement, so this run reports no result rather "
+            f"than a claim outcome it cannot explain."
+        )
+
+
+def prepare_topics(configuration: RunConfiguration, settings: Settings) -> None:
+    """Bring one execution's topics and consumer groups to a known-empty state.
+
+    Separated from ``execute_run`` because it must happen **once per execution, in the
+    parent**, and never in a restarted phase. A resumed phase that deleted and
+    recreated the topics it was resuming into would destroy the durable state the
+    ADR-0003 section 7 resume contract reads, and would report total loss for an
+    apparatus reason. tests/unit/test_state.py pins that the phase worker cannot
+    reach this function.
+
+    The consumer groups go with the topics, and for the same reason: the group id is
+    stable per run and configuration so a restarted phase resumes where the killed one
+    stopped, which across two matrix executions means a recreated topic can be paired
+    with a stale committed offset.
+    """
+    bootstrap = settings.broker_bootstrap_servers
+    assert bootstrap, "build_configuration already refused a missing broker address"
+    provision(bootstrap, configuration.topics.all_topics())
+    delete_consumer_groups(
+        bootstrap,
+        [str(configuration.consumer["group.id"]), str(configuration.verifier["group.id"])],
+    )
+
+
+def execute_run(
+    run_id: int,
+    configuration_name: str,
+    settings: Settings,
+    provision_topics: bool = True,
+) -> RunResult:
+    """Run one schedule entry under one configuration, in one process.
+
+    Injects no fault: this is the single-process path that ``scripts/run_one.py`` and
+    the control-run integration test use. The matrix drives the phases individually
+    through ``scripts/run_phase.py`` so they can be killed, and passes
+    ``provision_topics=False`` because the parent has already done it.
+    """
     entry = load_schedule_entry(run_id, settings)
     configuration = build_configuration(configuration_name, run_id, settings)
     bootstrap = settings.broker_bootstrap_servers
@@ -628,9 +810,17 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
     budget = RecoveryBudget()
     transactions = TransactionLedger()
 
-    provision(bootstrap, configuration.topics.all_topics())
+    if provision_topics:
+        prepare_topics(configuration, settings)
     ingest(configuration, sagas, transactions)
-    sent = process(configuration, settings, len(sagas), budget, transactions)
+    sent = process(
+        configuration,
+        settings,
+        len(sagas),
+        budget,
+        transactions,
+        is_control=bool(entry["control"]),
+    )
 
     differ = KeyedLedgerDiffer()
     sinks: list[SinkOutcome] = []
@@ -649,6 +839,14 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
                 observed=tuple(observed),
             )
         )
+
+    # The attributability invariant. In this single-process path no phase was
+    # restarted, so there are no offset gaps and any loss at all is unattributable,
+    # which is the correct and strictest reading: nothing was killed, so nothing may
+    # be missing. The matrix path passes the gaps its restarts actually produced.
+    assert_losses_are_attributable(
+        configuration, sinks, gaps=[], steps_per_saga=len(sagas[0].steps)
+    )
 
     status = STATUS_CLEAN if all(sink.is_clean for sink in sinks) else STATUS_NOT_CLEAN
     return RunResult(

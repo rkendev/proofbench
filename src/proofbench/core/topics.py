@@ -121,8 +121,88 @@ def delete(bootstrap: str, names: Sequence[str]) -> None:
             future.result(_ADMIN_TIMEOUT_S)
 
 
-def read_to_end(conf: dict[str, Any], topic: str) -> list[bytes]:
-    """Read every currently available message value from ``topic``, in offset order.
+def delete_consumer_groups(bootstrap: str, group_ids: Sequence[str]) -> list[str]:
+    """Remove exactly ``group_ids`` if they exist. Returns the ones actually deleted.
+
+    Provisioning deletes and recreates the topics a run uses, but the consumer group
+    survives, and the group id is stable per run and configuration
+    (``proofbench.rNN.<configuration>``) precisely so that a restarted phase resumes
+    where the killed one stopped. Across two matrix executions that stability becomes
+    a hazard: the input topic is recreated empty while the group still holds a
+    committed offset of 600.
+
+    Today that survives only by accident. The stale offset is past the new high
+    watermark, the broker answers ``OFFSET_OUT_OF_RANGE``, and
+    ``auto.offset.reset=earliest`` quietly rescues the run. Any scenario where the
+    stale offset lands *inside* the new topic's range instead, which a shorter run or
+    a partially rewritten topic would produce, makes the consumer skip records that
+    were never processed and the harness reports loss that no configuration caused.
+    A measurement harness cannot rest on an accident of arithmetic.
+
+    Called once per execution, before the first attempt, and **never between
+    attempts**: deleting it between attempts would destroy the committed offset that
+    ADR-0003 section 7 makes the process phase's durable state, which is the whole
+    resume mechanism.
+
+    A group with a live member cannot be deleted, and a SIGKILLed consumer stays
+    registered until its session expires, so the non-empty error is tolerated and
+    retried rather than raised.
+    """
+    from confluent_kafka import KafkaError, KafkaException
+    from confluent_kafka.admin import AdminClient
+
+    # Matched on the error code rather than on the message text. The text is a client
+    # rendering that a version bump may reword, and the two conditions here mean
+    # opposite things: one is the desired state and the other is a reason to wait.
+    absent = {KafkaError.GROUP_ID_NOT_FOUND, KafkaError.UNKNOWN_MEMBER_ID}
+    busy = {KafkaError.NON_EMPTY_GROUP}
+
+    admin = AdminClient({"bootstrap.servers": bootstrap})
+    deadline = time.monotonic() + _SETTLE_TIMEOUT_S
+    remaining = list(group_ids)
+    deleted: list[str] = []
+
+    while remaining and time.monotonic() < deadline:
+        still_present: list[str] = []
+        for name, future in admin.delete_consumer_groups(
+            remaining, request_timeout=_ADMIN_TIMEOUT_S
+        ).items():
+            try:
+                future.result(_ADMIN_TIMEOUT_S)
+                deleted.append(name)
+            except KafkaException as exc:
+                code = exc.args[0].code()
+                if code in absent:
+                    # Never existed, or already gone. Both are the desired state, and
+                    # a fresh run reaches this every time.
+                    continue
+                if code in busy:
+                    # A zombie member from a SIGKILLed attempt still holds it. It ages
+                    # out at session.timeout.ms, so wait rather than fail.
+                    still_present.append(name)
+                    continue
+                raise TopicProvisioningError(
+                    f"could not delete consumer group {name}: {exc}"
+                ) from exc
+            except Exception as exc:  # noqa: BLE001
+                raise TopicProvisioningError(
+                    f"could not delete consumer group {name}: {exc}"
+                ) from exc
+        remaining = still_present
+        if remaining:
+            time.sleep(_SETTLE_POLL_S)
+
+    if remaining:
+        raise TopicProvisioningError(
+            f"consumer group(s) {sorted(remaining)} still held a live member "
+            f"{_SETTLE_TIMEOUT_S:.0f}s after deletion was requested; a stale committed "
+            f"offset would make the next run skip records it never processed"
+        )
+    return deleted
+
+
+def read_to_end_with_offsets(conf: dict[str, Any], topic: str) -> list[tuple[int, bytes]]:
+    """Read every currently available message from ``topic`` as ``(offset, value)``.
 
     Terminates on the partition EOF event rather than on a poll timeout. A timeout
     that fired early would under-read the sink and report loss that never
@@ -131,14 +211,21 @@ def read_to_end(conf: dict[str, Any], topic: str) -> list[bytes]:
     configurations get the same deterministic signal.
 
     The partition is assigned explicitly rather than subscribed, so there is no
-    group rebalance to wait for and no chance of reading a partial assignment.
+    group rebalance to wait for and no chance of reading a partial assignment. It also
+    commits nothing, so reading a topic back never disturbs the committed offset that
+    ADR-0003 section 7 makes the process phase's durable state.
+
+    The offsets are carried because PB-T3 needs them for two things the sink ledgers
+    cannot answer on their own: which saga indices are durably complete in the input
+    topic (the ingest resume rule), and whether a lost side effect falls inside a
+    recorded offset gap (the attributability invariant).
     """
     from confluent_kafka import Consumer, KafkaError, TopicPartition
 
     consumer = Consumer(conf)
     try:
         consumer.assign([TopicPartition(topic, partition, 0) for partition in range(PARTITIONS)])
-        values: list[bytes] = []
+        records: list[tuple[int, bytes]] = []
         remaining = PARTITIONS
         while remaining > 0:
             message = consumer.poll(_ADMIN_TIMEOUT_S)
@@ -154,7 +241,12 @@ def read_to_end(conf: dict[str, Any], topic: str) -> list[bytes]:
                     remaining -= 1
                     continue
                 raise TopicProvisioningError(f"reading {topic} failed: {error}")
-            values.append(bytes(message.value()))
-        return values
+            records.append((int(message.offset()), bytes(message.value())))
+        return records
     finally:
         consumer.close()
+
+
+def read_to_end(conf: dict[str, Any], topic: str) -> list[bytes]:
+    """Read every currently available message value from ``topic``, in offset order."""
+    return [value for _, value in read_to_end_with_offsets(conf, topic)]

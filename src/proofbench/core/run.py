@@ -37,6 +37,7 @@ from typing import Any, Protocol
 
 from proofbench.config import Settings, repo_root
 from proofbench.core.configs import RunConfiguration, build_both, build_configuration
+from proofbench.core.evidence import ledger_jsonable, write_json, write_json_gz
 from proofbench.core.ledger_diff import KeyedLedgerDiffer
 from proofbench.core.recovery import (
     ApparatusFailure,
@@ -578,23 +579,6 @@ def execute_run(run_id: int, configuration_name: str, settings: Settings) -> Run
 # --------------------------------------------------------------------------
 
 
-def _ledger_jsonable(records: tuple[SideEffectRecord, ...]) -> list[dict[str, Any]]:
-    return [
-        {
-            "idempotency_key": record.idempotency_key,
-            "saga_id": record.saga_id,
-            "step_name": record.step_name,
-            "sequence": record.sequence,
-            "payload_checksum": record.payload_checksum,
-        }
-        for record in records
-    ]
-
-
-def _write(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
 def write_evidence(result: RunResult, settings: Settings) -> Path:
     """Write one run's evidence and return the directory it went to.
 
@@ -602,6 +586,22 @@ def write_evidence(result: RunResult, settings: Settings) -> Path:
     that ran, so a reader can see the allow-listed difference without holding two
     files side by side. Every file carries the disclaimer, because a number in a
     file outlives the sentence that qualified it.
+
+    Two changes at PB-T3, both forced by what this run has to survive and what it
+    has to prove.
+
+    **Every write is atomic.** ``Path.write_text`` truncates and then writes, and
+    this evidence is now written by processes that get SIGKILLed, so a torn file is
+    a real outcome rather than a theoretical one.
+
+    **The ledgers are committed, gzipped, with computed digests.** PB-T2 committed
+    digests alone and left the ledgers in a git-ignored directory, which was the
+    right call for an apparatus check: the question there was whether the harness
+    read zero. It is the wrong call for a published claim, where the question is
+    whether the counts follow from the records, and CLAIMS.md's selling point is
+    that a stranger can recompute them. JSON compresses roughly tenfold, so the
+    whole 42-execution matrix is a couple of megabytes. The digests are retained
+    and are now produced by the writer rather than typed by hand.
     """
     directory = (
         repo_root()
@@ -612,7 +612,7 @@ def write_evidence(result: RunResult, settings: Settings) -> Path:
     directory.mkdir(parents=True, exist_ok=True)
 
     both = build_both(result.run_id, settings)
-    _write(
+    write_json(
         directory / "resolved_config.json",
         {
             "artifact": EVIDENCE_DISCLAIMER,
@@ -621,33 +621,58 @@ def write_evidence(result: RunResult, settings: Settings) -> Path:
             "configurations": {name: conf.to_jsonable() for name, conf in both.items()},
         },
     )
-    _write(
+    write_json(
         directory / "schedule_entry.json",
         {"artifact": EVIDENCE_DISCLAIMER, **result.schedule_entry},
     )
-    _write(
-        directory / "expected_ledger.json",
-        {"artifact": EVIDENCE_DISCLAIMER, "records": _ledger_jsonable(result.expected)},
+
+    # The digests are collected as the ledgers are written, so ledger_checksums.json
+    # describes the bytes that went to disk rather than a second serialization of
+    # the same records that happened to agree with them.
+    digests: dict[str, str] = {}
+    digests["expected_ledger.json"] = write_json_gz(
+        directory / "expected_ledger.json.gz",
+        {"artifact": EVIDENCE_DISCLAIMER, "records": ledger_jsonable(result.expected)},
     )
     for sink in result.sinks:
-        _write(
-            directory / f"observed_{sink.name}.json",
+        digests[f"observed_{sink.name}.json"] = write_json_gz(
+            directory / f"observed_{sink.name}.json.gz",
             {
                 "artifact": EVIDENCE_DISCLAIMER,
                 "topic": sink.topic,
-                "records": _ledger_jsonable(sink.observed),
+                "records": ledger_jsonable(sink.observed),
             },
         )
-        _write(
+        # The diffs stay uncompressed. They are the part a reader opens first, they
+        # are small on a clean run, and on a fault run their size is itself the
+        # headline. A gzipped headline is a headline nobody reads.
+        write_json(
             directory / f"diff_{sink.name}.json",
             {
                 "artifact": EVIDENCE_DISCLAIMER,
                 **sink.to_jsonable(),
-                "duplicated_records": _ledger_jsonable(sink.diff.duplicated),
-                "lost_records": _ledger_jsonable(sink.diff.lost),
+                "duplicated_records": ledger_jsonable(sink.diff.duplicated),
+                "lost_records": ledger_jsonable(sink.diff.lost),
             },
         )
-    _write(directory / "run_summary.json", result.summary())
+
+    write_json(
+        directory / "ledger_checksums.json",
+        {
+            "artifact": EVIDENCE_DISCLAIMER,
+            "note": (
+                "SHA-256 of each ledger's uncompressed JSON, which is the document "
+                "inside the .json.gz beside it. The digest covers the plain bytes "
+                "rather than the compressed ones, so any gzip tool reproduces it. "
+                "The expected ledger is also rebuildable from the run seed and the "
+                "committed trace, so a reader who trusts neither the author nor this "
+                "file can regenerate it and check."
+            ),
+            "records_per_ledger": len(result.expected),
+            "sha256": digests,
+        },
+    )
+    write_json(directory / "run_summary.json", result.summary())
     return directory
 
 

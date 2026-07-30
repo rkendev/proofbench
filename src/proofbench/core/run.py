@@ -39,6 +39,7 @@ from typing import Any, Protocol
 from proofbench.config import Settings, repo_root
 from proofbench.core.configs import RunConfiguration, build_both, build_configuration
 from proofbench.core.evidence import ledger_jsonable, write_json, write_json_gz
+from proofbench.core.faults import FaultInjectingWriter, NoFault, SagaFaultInjector
 from proofbench.core.ledger_diff import KeyedLedgerDiffer
 from proofbench.core.recovery import (
     ApparatusFailure,
@@ -395,6 +396,7 @@ def ingest(
     configuration: RunConfiguration,
     sagas: tuple[Saga, ...],
     ledger: TransactionLedger,
+    injector: SagaFaultInjector | None = None,
 ) -> dict[str, int]:
     """Produce the run's side effects to the input topic, resuming if restarted.
 
@@ -423,6 +425,10 @@ def ingest(
     returns a resume point of 0, and the alternative would be a branch on "is this a
     restart" that the two configurations would have to agree about.
     """
+    # Inert unless a caller supplies a live one, so every existing call site and every
+    # non-fault run behaves exactly as it did.
+    injector = injector if injector is not None else NoFault()
+
     sender = _Sender(dict(configuration.ingest_producer), ledger, PHASE_INGEST, ROLE_INGEST)
     transactional = configuration.transactional
     if transactional:
@@ -435,10 +441,14 @@ def ingest(
     for saga in sagas[start:]:
         if transactional:
             sender.txn.begin()
-        for step in saga.steps:
+        for step_index, step in enumerate(saga.steps):
             sender.produce(
                 configuration.topics.input, step.record.idempotency_key, step.payload_bytes()
             )
+            # The mid-send window, and the only fault seam in this phase. Inert on
+            # every run whose entry names no producer fault, which is 34 of the 42
+            # executions.
+            injector.step_produced(saga.saga_index, step_index)
         sender.flush()
         if transactional:
             sender.txn.commit()
@@ -504,6 +514,7 @@ def process(
     budget: RecoveryBudget,
     ledger: TransactionLedger,
     is_control: bool = False,
+    injector: SagaFaultInjector | None = None,
 ) -> dict[str, int]:
     """Consume the input topic and write both sinks. Returns records sent per sink.
 
@@ -540,8 +551,15 @@ def process(
     """
     from confluent_kafka import Consumer, KafkaError, TopicPartition
 
+    injector = injector if injector is not None else NoFault()
+
     consumer = Consumer(dict(configuration.consumer))
     sender = _Sender(dict(configuration.sink_producer), ledger, PHASE_PROCESS, ROLE_SINK)
+    # The writer the sink path sees is the decorated one. write_saga_to_sinks is
+    # untouched, and so is the unit test that pins the frozen ordering it implements:
+    # that test is the only guard on a decision the control run cannot observe, so the
+    # fault seam goes around the function rather than into it.
+    writer = FaultInjectingWriter(sender, injector)
     transactional = configuration.transactional
     if transactional:
         sender.txn.init()
@@ -550,6 +568,7 @@ def process(
     per_sink: dict[str, int] = {sink_a: 0, sink_b: 0}
     buffered: list[tuple[str, bytes]] = []
     buffered_saga: str | None = None
+    buffered_index: int | None = None
     last_position: TopicPartition | None = None
     sagas_done = 0
     partial_groups = 0
@@ -573,11 +592,14 @@ def process(
         configuration-dependent code, and the offsets travel inside it under the good
         configuration because that is what C1 names.
         """
-        nonlocal buffered, buffered_saga, last_applied
+        nonlocal buffered, buffered_saga, buffered_index, last_applied
+        # Tells the injector which saga this is, and resets the writer's per-saga
+        # flush counter so "the first flush is sink A's" stays true.
+        writer.saga_started(buffered_index if buffered_index is not None else -1)
         if transactional:
             sender.txn.begin()
         # Sink A is durable before sink B is attempted. One path, no branch.
-        write_saga_to_sinks(sender, (sink_a, sink_b), buffered)
+        write_saga_to_sinks(writer, (sink_a, sink_b), buffered)
         per_sink[sink_a] += len(buffered)
         per_sink[sink_b] += len(buffered)
         if transactional:
@@ -592,6 +614,7 @@ def process(
         last_applied = last_position.offset
         buffered = []
         buffered_saga = None
+        buffered_index = None
 
     try:
         consumer.subscribe([configuration.topics.input])
@@ -645,6 +668,7 @@ def process(
 
                 buffered.append((str(payload["idempotency_key"]), bytes(message.value())))
                 buffered_saga = saga_id
+                buffered_index = int(payload["saga_index"])
                 last_position = TopicPartition(
                     message.topic(), message.partition(), message.offset() + 1
                 )

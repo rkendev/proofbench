@@ -677,8 +677,6 @@ def process(
     largest_batch = 0
     # Idempotency keys whose delivery failed permanently INSIDE an open fault window.
     permanently_failed: set[str] = set()
-    # Records the rejoin poll pulled off the queue, awaiting the main loop.
-    pending: list[Any] = []
 
     def rebuild_sender() -> None:
         """Discard a dead producer and construct a new one with the SAME id.
@@ -715,43 +713,50 @@ def process(
         from confluent_kafka import KafkaException
 
         def rejoin_consumer() -> None:
-            """Serve the consumer's queue so a stale group membership is restored.
+            """Service the client so a stale group membership is restored, and take
+            nothing from the queue while doing it.
 
-            The cycle 1 void. A broker restart invalidates the consumer's group
-            membership; ``send_offsets_to_transaction`` reads that membership from
-            ``consumer_group_metadata()``; and a consumer rejoins its group only when
-            the client is polled. The recovery loop replayed the sink write without ever
-            polling, so the membership was stale on the first retry and identically stale
-            on every retry after it. Four good broker runs exhausted the budget on the
-            same error and the matrix voided.
-
+            The cycle 1 void: a broker restart invalidates group membership,
+            ``send_offsets_to_transaction`` reads membership from
+            ``consumer_group_metadata()``, and a consumer rejoins only when polled.
             ADR-0003 section 6 fixes the response to an abortable error as "abort, then
-            replay that saga". Under the good configuration a saga replay necessarily
-            commits offsets inside the transaction, which needs group membership, which
-            needs a poll. The poll is not an addition to the frozen action: it is a
-            mechanical precondition of it.
+            replay that saga"; under the good configuration a replay commits offsets
+            inside the transaction, so membership is a mechanical precondition of the
+            frozen action. Unconditional, with no branch on the configuration.
 
-            **Unconditional, with no branch on the configuration.** The baseline never
-            reaches the abortable-error branch at all, because it makes no transactional
-            call, so an unconditional poll costs it nothing while keeping INV-P3's
-            control-flow gate clean. A configuration branch here would be a difference
-            in the recovery path, which is exactly what that gate exists to forbid.
+            **The cycle 2 artifact, and why this shape.** The first repair queued
+            whatever the poll returned and let the main loop drain it. That was wrong:
+            the recovery runs from inside the batch loop while ``buffered`` is
+            mid-accumulation, so re-delivered records were appended a second time and a
+            saga went out as a five-record group. The repair manufactured the
+            duplication it was written to avoid.
 
-            **What happens to records the poll returns**, which is the part that could
-            invent a number. Dropping them would manufacture loss; handing them to the
-            processing stream a second time would manufacture duplication. Neither is
-            acceptable, so they go to ``pending`` and the main loop drains that before
-            calling ``consume`` again. Offset order is preserved because anything the
-            rejoin poll returns is strictly earlier than anything a later ``consume``
-            would return.
+            The partitions are therefore paused first, so the poll cannot hand over a
+            record at all and the queue that caused the artifact does not exist. Two
+            measured facts behind that choice: ``poll(0)`` still returns whatever is
+            already buffered locally, so a zero timeout reduces the risk without
+            removing it; and a paused partition returns nothing even across a rebalance.
+
+            The pause is not trusted on its own. If a record is returned anyway the run
+            is abandoned rather than the record being queued or dropped, because either
+            of those is the apparatus inventing a number and neither is worth the
+            convenience.
             """
-            for _ in range(_REJOIN_POLL_ATTEMPTS):
-                message = consumer.poll(settings.consume_batch_wait_ms / 1000.0)
-                if message is not None:
-                    # Not dropped, not re-processed: queued for the main loop, which
-                    # handles data records and the partition-EOF event identically to
-                    # anything consume() hands it.
-                    pending.append(message)
+            assignment = consumer.assignment()
+            consumer.pause(assignment)
+            try:
+                for _ in range(_REJOIN_POLL_ATTEMPTS):
+                    message = consumer.poll(settings.consume_batch_wait_ms / 1000.0)
+                    if message is not None and message.error() is None:
+                        raise ApparatusFailure(
+                            "the consumer returned a record while its partitions were "
+                            "paused for a rejoin. Queueing it would duplicate work the "
+                            "batch loop has already buffered, which is the cycle 2 "
+                            "artifact, and dropping it would manufacture loss. The run "
+                            "reports no result rather than either."
+                        )
+            finally:
+                consumer.resume(assignment)
 
         def close_any_open_transaction() -> None:
             """Leave the producer with no transaction open, so a replay can begin one.
@@ -828,6 +833,46 @@ def process(
             "reports no result rather than a partial one"
         )
 
+    def assert_group_shape() -> None:
+        """A group is one saga's steps, at most once each. Checked before it is written.
+
+        The gate that would have made cycle 2 impossible, and it is cheaper and strictly
+        earlier than any analysis of what landed in the sink. The cycle 2 artifact was a
+        five-record group carrying saga 166's first two steps twice; by the time it
+        reached the sink it looked like two commits and took a live reproduction to
+        diagnose. Here it raises at the write, naming the saga.
+
+        A short group is legitimate and is not an error: a baseline resume can begin
+        mid-saga, and the trailing partial group at EOF is written rather than raised
+        because dropping it would manufacture loss. What is never legitimate is more
+        records than the saga has steps, a repeated step name, or two saga ids in one
+        group. Each of those means the buffer accumulated something twice.
+        """
+        if not buffered:
+            return
+        keys = [key for key, _ in buffered]
+        saga_ids = {key.rsplit(":", 1)[0] for key in keys}
+        steps = [key.rsplit(":", 1)[1] for key in keys]
+
+        if len(buffered) > settings.steps_per_saga:
+            raise ApparatusFailure(
+                f"a saga group holds {len(buffered)} records where a saga has "
+                f"{settings.steps_per_saga} steps: {keys}. The buffer accumulated the "
+                f"same records more than once, which would write a duplicate the "
+                f"delivery configuration did not cause."
+            )
+        if len(set(steps)) != len(steps):
+            raise ApparatusFailure(
+                f"a saga group repeats a step name: {keys}. Each step appears at most "
+                f"once in a saga, so a repeat means the buffer accumulated it twice."
+            )
+        if len(saga_ids) != 1:
+            raise ApparatusFailure(
+                f"a saga group spans {len(saga_ids)} saga ids: {sorted(saga_ids)}. The "
+                f"frozen transaction boundary is one saga, so a group covering two is "
+                f"not the boundary the contract names."
+            )
+
     def write_group() -> None:
         """Write the buffered saga to both sinks and commit the way the config says.
 
@@ -838,6 +883,7 @@ def process(
         nonlocal buffered, buffered_saga, buffered_index, last_applied
         # Tells the injector which saga this is, and resets the writer's per-saga
         # flush counter so "the first flush is sink A's" stays true.
+        assert_group_shape()
         writer.saga_started(buffered_index if buffered_index is not None else -1)
         if transactional:
             sender.txn.begin()
@@ -873,16 +919,10 @@ def process(
         reached_end = False
         idle_since: float | None = None
         while not reached_end:
-            if pending:
-                # Records the rejoin poll pulled off the queue. Drained before anything
-                # new is consumed, so nothing is dropped and nothing is seen twice.
-                batch = list(pending)
-                pending.clear()
-            else:
-                batch = consumer.consume(
-                    num_messages=settings.consumer_max_batch_records,
-                    timeout=settings.consume_batch_wait_ms / 1000.0,
-                )
+            batch = consumer.consume(
+                num_messages=settings.consumer_max_batch_records,
+                timeout=settings.consume_batch_wait_ms / 1000.0,
+            )
             if not batch:
                 # No progress on this call. That is ordinary while the broker is down
                 # during an injected outage, or while a restarted consumer waits out

@@ -399,18 +399,21 @@ def test_grouping_is_driven_by_the_payload_not_by_arrival_position() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_the_rejoin_poll_neither_drops_nor_reprocesses_a_record() -> None:
-    """The part of the cycle 1 repair that could have invented a number.
+def test_the_rejoin_poll_can_return_nothing_to_drop_or_reprocess() -> None:
+    """Both hazards, checked by name, which is the lesson cycle 2 taught.
 
-    The rejoin poll serves the consumer's queue, and serving a queue returns whatever
-    is on it. Dropping those records would manufacture loss; handing them to the
-    processing stream a second time would manufacture duplication. Either would be the
-    apparatus producing a figure out of its own recovery rather than out of the
-    configuration under test, which is exactly what INV-P2 exists to prevent.
+    The requirement named two failure modes: dropping a returned record manufactures
+    loss, and handing it to the processing stream a second time manufactures
+    duplication. The first version of this test checked only the first, so the second
+    shipped, and a saga went out as a five-record group that read as a C1 failure.
 
-    The handling: they go to a pending list, and the main loop drains that before
-    calling consume again. Read out of the source because the alternative needs a live
-    broker mid-rebalance, and a test that could only run there is a test nobody runs.
+    **Hazard 1, dropping.** Nothing can be dropped because nothing can be returned: the
+    partitions are paused for the duration of the rejoin poll.
+
+    **Hazard 2, double-feeding.** Nothing can be re-fed for the same reason, and the
+    queue that made it possible is gone rather than made safe. If a record is returned
+    in spite of the pause, the run is abandoned rather than the record being kept or
+    discarded, because either would be the apparatus inventing a number.
     """
     import inspect
 
@@ -418,24 +421,29 @@ def test_the_rejoin_poll_neither_drops_nor_reprocesses_a_record() -> None:
 
     source = inspect.getsource(run.process)
 
-    # The poll appends rather than discarding.
-    assert "pending.append(message)" in source, (
-        "the rejoin poll discards what it pulls off the queue, which manufactures loss"
+    # Hazard 2: the mechanism is removed, not guarded.
+    assert "pending" not in source, (
+        "the pending queue is back. It is what let a re-delivered record be appended to "
+        "a buffer that already held it, producing the cycle 2 five-record group."
     )
-    # The main loop drains pending BEFORE consuming anything new, so nothing is seen
-    # twice and offset order is preserved: anything the poll returned is strictly
-    # earlier than anything a later consume would return.
-    assert "if pending:" in source
-    assert source.index("batch = list(pending)") < source.index("batch = consumer.consume(")
-    assert "pending.clear()" in source
+
+    body = source[source.index("def rejoin_consumer") : source.index("def close_any_open")]
+    # Nothing can be returned at all.
+    assert "consumer.pause(" in body and "consumer.resume(" in body
+    assert body.index("consumer.pause(") < body.index("consumer.poll(")
+    assert "finally:" in body, "the resume must run even if the poll raises"
+    # And if something is returned anyway, it is refused rather than kept or dropped.
+    assert "ApparatusFailure(" in body
+    assert "message.error() is None" in body
 
 
-def test_pending_records_go_through_the_same_loop_body() -> None:
-    """So a partition-EOF event pulled off by the rejoin poll still ends the drain.
+def test_a_group_may_never_hold_more_than_one_saga_worth_of_records() -> None:
+    """The group-shape invariant runs at the write, before anything is produced.
 
-    The rejoin poll cannot distinguish a data record from an EOF event and must not
-    try. Both are put on the pending list and both are handled by the branch that
-    already handles everything consume() returns.
+    Checked by AST rather than by substring. The first version of this gate matched the
+    ``def assert_group_shape()`` line and passed with the call deleted, which is the
+    hollow-gate failure this repository has now met three times: a guard that cannot
+    fire looks exactly like a guard with nothing to report.
     """
     import ast
     import inspect
@@ -443,15 +451,23 @@ def test_pending_records_go_through_the_same_loop_body() -> None:
     from proofbench.core import run
 
     tree = ast.parse(inspect.getsource(run.process))
-    # Exactly one `for message in batch:` loop, so pending and consumed records cannot
-    # be handled by two different code paths.
-    loops = [
+    writer = next(
         node
         for node in ast.walk(tree)
-        if isinstance(node, ast.For)
-        and isinstance(node.target, ast.Name)
-        and node.target.id == "message"
-        and isinstance(node.iter, ast.Name)
-        and node.iter.id == "batch"
+        if isinstance(node, ast.FunctionDef) and node.name == "write_group"
+    )
+    called = [
+        node.func.id
+        for node in ast.walk(writer)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     ]
-    assert len(loops) == 1, f"expected one batch-handling loop, found {len(loops)}"
+    assert "assert_group_shape" in called, (
+        "write_group does not call the group-shape invariant, so a buffer that "
+        "accumulated the same records twice would be written unchecked. That is the "
+        "cycle 2 artifact."
+    )
+
+    statements = [ast.unparse(stmt) for stmt in writer.body]
+    called_at = next(i for i, s in enumerate(statements) if "assert_group_shape()" in s)
+    produced_at = next(i for i, s in enumerate(statements) if "write_saga_to_sinks" in s)
+    assert called_at < produced_at, "the invariant runs after the records are produced"

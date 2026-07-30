@@ -533,6 +533,107 @@ tightened an existing gate rather than relaxing it: the frozen-batch-size rule n
 asserts that any `poll` in the process phase lies inside `rejoin_consumer`, so the batch
 still comes only from `consume`.
 
+---
+
+## 10. Void record: cycle 2 of 3, 2026-07-30
+
+Cycle 2 ran all 42 executions in 33.7 minutes with **zero apparatus failures** and
+satisfied every validity rule. It is void anyway, and for a reason the rules could not
+see: **the harness manufactured a duplication and reported it as C1 FAILED.**
+
+The rejoin repair from cycle 1 introduced it. That repair queued whatever the rejoin
+poll returned so nothing would be dropped, and the queued records were then appended to
+a buffer that already held them. A saga went out as a five-record group. **The cycle 1
+repair fixed one artifact and created another**, which is the single best piece of
+evidence for why the cycle cap exists and is recorded here rather than buried.
+
+The invariant set had no mirror for manufactured duplication: attributability covers
+unexplained loss only, so a well-formed matrix carried an invented number to a verdict.
+
+### The firewall on cycle 2
+
+**No C1, C2 or C3 outcome from cycle 2 may inform anything written, decided or
+configured from here on.** Not the fix, not the criterion in section 11, not cycle 3's
+interpretation. The only artifact cycle 2 is permitted to yield is the group-shape
+signature itself, `saga=166, n=5, [create_ticket, charge_card, create_ticket,
+charge_card, send_confirmation]`, which is an apparatus fact rather than a claim outcome.
+
+The cycle cap governs **matrix executions**, runs whose outcomes are eligible to be
+published as C1/C2/C3 evidence. It does not govern diagnostic runs against a cycle whose
+claim outcomes are already void. The hazard the cap exists to prevent is re-running the
+matrix until it comes out favourably, and that hazard requires a live number to steer
+toward. Under the firewall above there is none. This distinction is drawn here in
+advance, before the diagnosis resumed, so that it is auditable rather than invented to
+license the runs.
+
+## 11. What a GENUINE C1 failure looks like, written blind
+
+**Authored before the mechanism behind the cycle 2 artifact was located**, deliberately.
+A criterion written afterwards would be shaped to exclude whatever was just found, which
+is the same defect as choosing a floor after seeing a result. This one binds: **if the
+mechanism eventually located falls on the genuine side of it, it is reported as
+genuine.**
+
+A duplication is a **genuine C1 failure** when all of these hold:
+
+1. Every group written by the process phase was well formed: at most `steps_per_saga`
+   records, no repeated step name, one saga id. The harness never handed Kafka a
+   malformed unit of work.
+2. The duplicate is visible under `read_committed` in a sink, and the expected ledger
+   accounts for it as a repeated idempotency key.
+3. The duplication is explained by the delivery configuration rather than by the
+   harness: a record was written in one committed transaction and written again in
+   another, or written twice by a producer whose idempotence did not suppress the
+   retry, with both writes issued by well-formed groups.
+4. It survives on the good configuration, whose settings are exactly the ones C1 names.
+
+A duplication is an **apparatus artifact** when any of these hold:
+
+1. Any group written by the process phase was malformed by the rule above.
+2. The same records appear in `buffered` more than once at any append.
+3. The duplicate count is not reproducible across repetitions of the same seeded fault
+   while the configuration is unchanged, since a genuine delivery-semantics outcome is a
+   property of the configuration and the fault, not of a race in the harness.
+
+If a duplication satisfies the genuine criteria, **C1 ships FAILED** and the ship rule
+applies unmodified. The apparatus criteria are not an escape hatch: each names a defect
+in the harness that can be pointed at, and none of them can be satisfied by a run whose
+groups were all well formed.
+
+## 12. The diagnostic budget, pre-committed
+
+**Twelve reproduction attempts of the seeded broker fault under the good configuration**,
+at roughly 100 seconds each. Chosen now, before the hunt resumed, because a budget set
+after a few failed attempts is a budget set to accommodate them.
+
+If it is exhausted with the mechanism still unlocated, the project ships:
+
+> **C1 not evaluable.** An apparatus defect in the recovery path produces a malformed
+> consumer-side group under fault injection. The defect is characterised by a proven
+> reproducible signature and is detected by an invariant that converts it to
+> `apparatus_failure`; its mechanism was not located within the pre-committed diagnostic
+> budget. **Cycle 3 was deliberately left unspent.**
+
+An unspent cycle 3 is an asset rather than a gap: it records that the discipline held
+under pressure and that the last cycle was not converted into a number nobody could
+defend. Three voids and an exhausted cap would say the opposite about the same
+underlying bug.
+
+## 13. Call-site gates are AST-based, never textual
+
+Three times in this run a guard passed vacuously, and the third was a call-site check
+that matched the invariant's own `def` line and stayed green with the call deleted. That
+is not three mistakes but one missing rule:
+
+> **A call-site check written as a text search is defective by construction, because the
+> search always matches the definition. Every check that an invariant is actually called
+> must walk the AST of the calling module and assert a Call node, and must be proven red
+> by deleting the call.**
+
+Enforced by `tests/unit/test_call_sites.py`, which walks every invariant the repository
+relies on and asserts its call site exists as a Call node in the module that should
+invoke it.
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose

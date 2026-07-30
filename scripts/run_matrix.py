@@ -197,6 +197,7 @@ def _execute(run_id: int, configuration: str, settings: Settings, ordinal: int) 
 
     started = time.monotonic()
     diagnosis = ""
+    gaps: list[tuple[int, int]] = []
     for phase in (PHASE_INGEST, PHASE_PROCESS):
         outcome = _drive_phase(run_id, configuration, phase, directory, settings)
         if outcome != "completed":
@@ -236,9 +237,8 @@ def _execute(run_id: int, configuration: str, settings: Settings, ordinal: int) 
                 )
             )
         assert state is not None
-        assert_losses_are_attributable(
-            configuration_obj, sinks, state.offset_gaps(), settings.steps_per_saga
-        )
+        gaps = state.offset_gaps()
+        assert_losses_are_attributable(configuration_obj, sinks, gaps, settings.steps_per_saga)
     except Exception as exc:  # noqa: BLE001
         diagnosis = f"verification: {type(exc).__name__}: {exc}"
         _say(f"        apparatus failure in {elapsed:.0f}s: {diagnosis}")
@@ -261,9 +261,11 @@ def _execute(run_id: int, configuration: str, settings: Settings, ordinal: int) 
 
     duplicated = sum(len(s.diff.duplicated) for s in sinks)
     lost = sum(len(s.diff.lost) for s in sinks)
+    skipped = sum(end - start for start, end in gaps)
     _say(
         f"        {status} in {elapsed:.0f}s: "
         f"duplicated={duplicated} lost={lost} "
+        f"(gaps={gaps or 'none'} skipping {skipped} input records) "
         f"txn committed={state.transactions.committed} aborted={state.transactions.aborted}"
     )
 
@@ -280,6 +282,9 @@ def _execute(run_id: int, configuration: str, settings: Settings, ordinal: int) 
         transactions_aborted=state.transactions.aborted,
         max_open_transaction_ms=round(state.transactions.max_open_ms, 3),
         recovery=state.budget.to_jsonable(),
+        offset_gaps=[[start, end] for start, end in gaps],
+        records_in_gaps=sum(end - start for start, end in gaps),
+        attempts=len(state.attempts_for(PHASE_PROCESS)),
     )
 
 

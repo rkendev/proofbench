@@ -108,6 +108,15 @@ class Execution:
     transactions_aborted: int
     max_open_transaction_ms: float
     recovery: dict[str, Any]
+    # The attributability arithmetic, carried so a reader can reconcile the loss count
+    # against the window that explains it rather than taking the invariant's word for
+    # it. A consumer kill under the baseline measured 149 lost across two sinks against
+    # a 76-offset gap: 76 input records skipped, each of which should have been written
+    # to both sinks, minus the partial saga sink A had already received before the kill.
+    # Without these fields that reconciliation is not checkable from the matrix.
+    offset_gaps: list[list[int]] = field(default_factory=list)
+    records_in_gaps: int = 0
+    attempts: int = 1
     diagnosis: str = ""
 
     @property
@@ -132,6 +141,12 @@ class Execution:
             "transactions_aborted": self.transactions_aborted,
             "max_open_transaction_ms": self.max_open_transaction_ms,
             "recovery": self.recovery,
+            "offset_gaps": self.offset_gaps,
+            "records_in_gaps": self.records_in_gaps,
+            "lost_per_skipped_record": (
+                round(self.lost / self.records_in_gaps, 3) if self.records_in_gaps else None
+            ),
+            "attempts": self.attempts,
             "diagnosis": self.diagnosis,
         }
 

@@ -201,10 +201,21 @@ class DeliveryError(Exception):
     ``fatal()``, and a formatted message cannot be asked those questions.
     """
 
-    def __init__(self, message: str, errors: tuple[Any, ...], still_queued: int) -> None:
+    def __init__(
+        self,
+        message: str,
+        errors: tuple[Any, ...],
+        still_queued: int,
+        failed_keys: tuple[str, ...] = (),
+    ) -> None:
         super().__init__(message)
         self.errors = errors
         self.still_queued = still_queued
+        # Which records failed, not merely how many. The attributability invariant's
+        # third route keys on the specific record, so a window-level "something failed
+        # here" would not be enough to distinguish an explained loss from an apparatus
+        # break that happened to coincide with the outage.
+        self.failed_keys = failed_keys
 
 
 class DeliveryFailure(ApparatusFailure):
@@ -246,6 +257,12 @@ class _Sender:
         # cannot be asked those questions.
         self.errors: list[Any] = []
         self.error_topics: list[str] = []
+        # The idempotency keys of records whose delivery failed permanently. The
+        # attributability invariant's third route is RECORD-LEVEL, so it needs to know
+        # which record failed and not merely that something did. The Kafka message key
+        # is the idempotency key (see ingest and write_saga_to_sinks), so the callback
+        # already has it and PB-T2 simply discarded it.
+        self.failed_keys: list[str] = []
         self.sent = 0
         # Constructed for both configurations, exercised only by the transactional
         # one. Keeping it unconditional is what lets the two configurations share
@@ -257,6 +274,8 @@ class _Sender:
         if error is not None:
             self.errors.append(error)
             self.error_topics.append(str(message.topic()) if message else "unknown")
+            if message is not None and message.key() is not None:
+                self.failed_keys.append(bytes(message.key()).decode("utf-8", "replace"))
 
     def produce(self, topic: str, key: str, value: bytes) -> None:
         self.producer.produce(
@@ -276,8 +295,10 @@ class _Sender:
         """
         remaining = self.producer.flush(_FLUSH_TIMEOUT_S)
         errors = tuple(self.errors)
+        failed = tuple(self.failed_keys)
         self.errors.clear()
         self.error_topics.clear()
+        self.failed_keys.clear()
 
         if remaining:
             # Not routed through the fault-window boundary, in either direction.
@@ -296,6 +317,7 @@ class _Sender:
                 f"{len(errors)} record(s) failed delivery, starting with {errors[0]}",
                 errors=errors,
                 still_queued=0,
+                failed_keys=failed,
             )
 
 
@@ -575,7 +597,7 @@ def process(
     injector: SagaFaultInjector | None = None,
     window: WindowState | None = None,
     progress: Callable[[int], None] | None = None,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     """Consume the input topic and write both sinks. Returns records sent per sink.
 
     One sink-writing path, shared by both configurations: produce every step of
@@ -647,6 +669,8 @@ def process(
     # back as one record would have a one-record commit-ahead window and would look
     # exactly like a run with the constant wired up. Measured, not assumed.
     largest_batch = 0
+    # Idempotency keys whose delivery failed permanently INSIDE an open fault window.
+    permanently_failed: set[str] = set()
 
     def rebuild_sender() -> None:
         """Discard a dead producer and construct a new one with the SAME id.
@@ -716,6 +740,10 @@ def process(
                 outcome = resolve_transactional_error(exc, window, budget)
             except DeliveryError as failure:
                 outcome = resolve_delivery_error(failure, window, budget)
+                # Recorded only AFTER the boundary accepted the failure as in-window,
+                # so the third attribution route can never be reached by a failure the
+                # boundary would have called an apparatus break.
+                permanently_failed.update(failure.failed_keys)
 
             if outcome is TransactionOutcome.REINIT_PRODUCER:
                 rebuild_sender()
@@ -890,6 +918,7 @@ def process(
         "sagas_processed": sagas_done,
         "partial_groups": partial_groups,
         "largest_batch": largest_batch,
+        "permanently_failed_keys": sorted(permanently_failed),
         "resumed_at_offset": -1 if resumed_at is None else resumed_at,
         "last_applied_offset": -1 if last_applied is None else last_applied,
     }
@@ -945,6 +974,7 @@ def assert_losses_are_attributable(
     sinks: Sequence[SinkOutcome],
     gaps: list[tuple[int, int]],
     steps_per_saga: int,
+    permanently_failed_keys: Sequence[str] = (),
 ) -> None:
     """Refuse to report a loss that no recorded offset gap explains.
 
@@ -991,11 +1021,12 @@ def assert_losses_are_attributable(
         return
 
     _, key_offsets = durable_saga_indices(configuration, steps_per_saga)
-    unexplained = unattributable_losses(lost_keys, key_offsets, gaps)
+    unexplained = unattributable_losses(lost_keys, key_offsets, gaps, permanently_failed_keys)
     if unexplained:
         raise ApparatusFailure(
-            f"{len(unexplained)} lost side effect(s) fall outside every recorded offset "
-            f"gap, starting with {unexplained[0]!r}. Recorded gaps: {gaps or 'none'}. A "
+            f"{len(unexplained)} lost side effect(s) are explained by no recorded offset "
+            f"gap and by no recorded per-record delivery failure, starting with "
+            f"{unexplained[0]!r}. Recorded gaps: {gaps or 'none'}. A "
             f"loss the harness cannot attribute to a specific skipped offset range is an "
             f"apparatus defect, not a measurement, so this run reports no result rather "
             f"than a claim outcome it cannot explain."

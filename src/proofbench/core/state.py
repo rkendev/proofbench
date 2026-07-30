@@ -32,6 +32,7 @@ every process-phase kill run and gutted C1's coverage rather than only C2's.
 from __future__ import annotations
 
 import json
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -135,6 +136,12 @@ class RunState:
 
     entry_names_a_fault: bool = False
 
+    # Idempotency keys whose delivery was recorded as permanently failed INSIDE an open
+    # fault window. The third attribution route keys on these, and they are durable
+    # because the phase that records them is a different process from the one that
+    # verifies the sinks.
+    permanently_failed_keys: list[str] = field(default_factory=list)
+
     @property
     def fault_has_fired(self) -> bool:
         return self.fault_fired
@@ -237,6 +244,7 @@ class RunState:
                 "fired_twice": self.fault_fired_twice,
             },
             "attempts": [attempt.to_jsonable() for attempt in self.attempts],
+            "permanently_failed_keys": sorted(self.permanently_failed_keys),
             "recovery": self.budget.to_jsonable(),
             "transactions": self.transactions.to_jsonable(),
         }
@@ -264,6 +272,7 @@ class RunState:
             fault_window_closed=bool(fault.get("window_closed", False)),
             fault_fired_twice=bool(fault.get("fired_twice", False)),
             entry_names_a_fault=bool(payload.get("entry_names_a_fault", False)),
+            permanently_failed_keys=list(payload.get("permanently_failed_keys", [])),
         )
 
     def save(self, path: Path) -> None:
@@ -298,6 +307,7 @@ def unattributable_losses(
     lost_keys: list[str],
     key_offsets: dict[str, int],
     gaps: list[tuple[int, int]],
+    permanently_failed_keys: Collection[str] = (),
 ) -> list[str]:
     """Return the lost keys that no recorded offset gap explains.
 
@@ -320,9 +330,30 @@ def unattributable_losses(
 
     A key with no recorded offset is unattributable too: it means the record is not in
     the input topic the run read back, so the harness cannot say where it went.
+
+    **The third route, added before the matrix ran and while the result was unknown.**
+    A lost record is also attributable if its own send was recorded as permanently
+    failed inside an open fault window. Without it a baseline broker run cannot report
+    loss at all: it has one process-phase attempt, so no offset gaps, and no
+    transactions, so no aborted-transaction route either. A genuine loss would become
+    apparatus_failure and, under matrix-validity rule 4, void the matrix. That destroys
+    the exact signal C2 measures in the only six runs where it can still appear.
+
+    It is a validity repair by the principle in ADR-0004: the invariant's stated purpose
+    is that an UNEXPLAINED loss is an apparatus defect, and this loss is explained.
+
+    **Record-level, not window-level, and the distinction is the whole safeguard.** "Any
+    loss during a fault window is attributable" would absorb a genuine apparatus break
+    that happened to coincide with the outage, and the invariant would lose its teeth.
+    The key must appear in the set of records whose delivery was recorded as permanently
+    failed, and that set is only ever written after the fault-window boundary has already
+    accepted the failure as in-window, so both conditions are carried by construction.
     """
+    permanently_failed = set(permanently_failed_keys)
     unexplained: list[str] = []
     for key in lost_keys:
+        if key in permanently_failed:
+            continue
         offset = key_offsets.get(key)
         if offset is None or not any(start <= offset < end for start, end in gaps):
             unexplained.append(key)

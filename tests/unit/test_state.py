@@ -336,3 +336,77 @@ def test_provisioning_and_group_deletion_happen_in_the_same_place() -> None:
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
     }
     assert {"provision", "delete_consumer_groups"} <= called
+
+
+# --------------------------------------------------------------------------
+# The third attribution route, added before the matrix ran
+# --------------------------------------------------------------------------
+
+
+def test_a_baseline_broker_loss_has_no_gap_and_no_transaction_to_explain_it() -> None:
+    """The case that forced the third route, constructed rather than argued.
+
+    A baseline broker run has one process-phase attempt, because nothing SIGKILLs it,
+    so offset_gaps() is empty. It is also non-transactional, so there is no aborted
+    transaction either. A genuine loss therefore had no route to attribution at all and
+    would become apparatus_failure, which under matrix-validity rule 4 voids the whole
+    matrix: destroying the exact signal C2 measures, in the only runs where it can still
+    appear.
+    """
+    state = RunState(run_id=3, configuration="baseline", entry_names_a_fault=True)
+    state.record_attempt(
+        Attempt(PHASE_PROCESS, 1, OUTCOME_COMPLETED, resumed_at=0, last_applied=600)
+    )
+    assert state.offset_gaps() == [], "a run with one attempt cannot produce a gap"
+
+    lost = ["seed-0149:charge_card"]
+    offsets = {"seed-0149:charge_card": 447}
+    assert unattributable_losses(lost, offsets, state.offset_gaps()) == lost
+
+
+def test_a_loss_with_a_recorded_per_record_failure_is_attributable() -> None:
+    """The third route. Proven red by removing it: the loss becomes unattributable.
+
+    The record's own send was recorded as permanently failed inside an open fault
+    window, so the loss is explained. The invariant's stated purpose is that an
+    UNEXPLAINED loss is an apparatus defect, and this one is explained.
+    """
+    lost = ["seed-0149:charge_card"]
+    offsets = {"seed-0149:charge_card": 447}
+    assert unattributable_losses(lost, offsets, [], permanently_failed_keys=lost) == []
+
+
+def test_a_loss_without_a_recorded_failure_is_still_unattributable() -> None:
+    """RECORD-LEVEL, not window-level, and this is the assertion that keeps it so.
+
+    "Any loss during a fault window is attributable" would absorb a genuine apparatus
+    break that happened to coincide with the outage, and the invariant would lose its
+    teeth. A second record, lost in the same run and the same window as one with a
+    recorded failure, is still unattributable because its own send was never recorded
+    as failed.
+
+    Proven red by widening the route to accept any loss while a window was open.
+    """
+    explained = "seed-0149:charge_card"
+    unexplained = "seed-0031:send_confirmation"
+    offsets = {explained: 447, unexplained: 93}
+
+    result = unattributable_losses(
+        [explained, unexplained], offsets, [], permanently_failed_keys=[explained]
+    )
+    assert result == [unexplained], (
+        "a loss with no per-record failure recorded against it must remain an apparatus "
+        "defect even inside a fault window, or the route becomes window-level"
+    )
+
+
+def test_the_recorded_keys_survive_a_round_trip(tmp_path: Path) -> None:
+    """The phase that records them is a different process from the one that verifies."""
+    state = RunState(run_id=3, configuration="baseline", entry_names_a_fault=True)
+    state.permanently_failed_keys = ["seed-0149:charge_card"]
+    path = tmp_path / "state.json"
+    state.save(path)
+
+    reloaded = RunState.load(path)
+    assert reloaded is not None
+    assert reloaded.permanently_failed_keys == ["seed-0149:charge_card"]

@@ -270,6 +270,45 @@ a recorded offset gap, and under `good` the gap list is empty by construction, s
 loss at all is unattributable and the run ends as `apparatus_failure` rather than as a
 C1 failure. The replacement is not safe because the original was redundant.
 
+### The third attribution route, added before the matrix ran
+
+The invariant as first written accepted a loss only if the record's offset fell inside a
+recorded gap between a killed attempt and its restart. **Verified concretely rather than
+reasoned about**, and it leaves one case with no route at all.
+
+A baseline broker run has exactly one process-phase attempt, because nothing SIGKILLs
+it, so ``offset_gaps()`` is empty by construction. It is also non-transactional, so there
+is no aborted-transaction route either. A genuine loss would therefore be unattributable,
+become ``apparatus_failure``, and under validity rule 4 **void the whole matrix** rather
+than record the loss. That destroys the exact signal C2 measures, in the only six runs
+where it can still appear, and costs a cycle each time.
+
+So a third route is added, **before the matrix runs and while the result is unknown**:
+
+> A lost record is attributable if its own send was recorded as permanently failed
+> inside a recorded fault window.
+
+**Record-level, not window-level, and that distinction is the whole safeguard.** "Any
+loss during a fault window is attributable" would absorb a genuine apparatus break that
+merely coincided with the outage, and the invariant would lose its teeth. The key must
+appear in the set of records whose delivery was recorded as failed, and that set is only
+written after the fault-window boundary has already accepted the failure as in-window, so
+both conditions are carried by construction rather than checked twice.
+
+The missing piece was that the failing record's identity was not recorded anywhere:
+``_Sender`` kept the errors and their topics and discarded the message key, which is the
+idempotency key. It is captured now and carried durably in the run state, because the
+phase that records it is a different process from the one that verifies the sinks.
+
+**This is a validity repair by the principle above.** The invariant's stated purpose is
+that an *unexplained* loss is an apparatus defect, and this loss is explained. It cannot
+wait until after a void, because then it would be an adjustment made after seeing a
+result.
+
+Proven red both ways: a loss with a recorded per-record failure must be attributable and
+scored, and a loss without one, inside the same window and the same run, must still be
+``apparatus_failure``.
+
 ---
 
 ## 8. C2 cannot reach its floor, and this is written before the matrix runs

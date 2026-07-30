@@ -156,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     sagas = expand_sagas(str(entry["seed"]), settings, trace)
 
     try:
+        stats: dict[str, Any]
         if args.phase == PHASE_INGEST:
             stats = ingest(configuration, sagas, state.transactions, injector)
             resumed_at, last_applied = None, None
@@ -173,9 +174,15 @@ def main(argv: list[str] | None = None) -> int:
                 window=state,
                 progress=record_progress,
             )
-            resumed_at = stats["resumed_at_offset"] if stats["resumed_at_offset"] >= 0 else None
+            failed: list[str] = list(stats.get("permanently_failed_keys", []))
+            state.permanently_failed_keys = sorted(set(state.permanently_failed_keys) | set(failed))
+            resumed_at = (
+                int(stats["resumed_at_offset"]) if int(stats["resumed_at_offset"]) >= 0 else None
+            )
             last_applied = (
-                stats["last_applied_offset"] if stats["last_applied_offset"] >= 0 else None
+                int(stats["last_applied_offset"])
+                if int(stats["last_applied_offset"]) >= 0
+                else None
             )
     except ApparatusFailure as exc:
         # Reached only when the phase survives long enough to raise. A SIGKILLed phase

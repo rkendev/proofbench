@@ -296,6 +296,58 @@ def test_the_stopping_rule_is_the_same_code_in_both_configurations() -> None:
     assert "settings.consume_batch_wait_ms" in source
 
 
+def test_the_control_flow_walk_can_actually_see_a_violation() -> None:
+    """The positive control for the gate above, which passes by absence.
+
+    Added after a gate in commit 8 produced a false GREEN rather than refusing to go
+    red. The gate asserts that three sets are empty, and an empty set is what a broken
+    walk returns, so without this a typo in the node types would look identical to a
+    stopping rule that is genuinely configuration-blind.
+
+    The same extractions are run against source that does branch on the configuration,
+    and each has to find it.
+    """
+    import ast
+
+    guilty = ast.parse(
+        "def process(configuration, settings):\n"
+        "    budget = settings.consume_stall_budget_ms\n"
+        '    if configuration.name == "baseline":\n'
+        "        budget = budget / 2\n"
+        "    return budget\n"
+    )
+
+    named = {
+        node.value
+        for node in ast.walk(guilty)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and node.value in ("good", "baseline")
+    }
+    assert named == {"baseline"}, "the string-literal walk cannot see a configuration name"
+
+    reads = {
+        node.attr
+        for node in ast.walk(guilty)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "configuration"
+    }
+    assert "name" in reads, "the attribute walk cannot see configuration.name"
+
+    branch_reads: set[str] = set()
+    for node in ast.walk(guilty):
+        if isinstance(node, ast.If):
+            for inner in ast.walk(node.test):
+                if (
+                    isinstance(inner, ast.Attribute)
+                    and isinstance(inner.value, ast.Name)
+                    and inner.value.id == "configuration"
+                ):
+                    branch_reads.add(inner.attr)
+    assert branch_reads == {"name"}, "the branch walk cannot see a configuration-gated if"
+
+
 def test_grouping_is_driven_by_the_payload_not_by_arrival_position() -> None:
     """So the rule cannot be fooled by where the stream resumes.
 

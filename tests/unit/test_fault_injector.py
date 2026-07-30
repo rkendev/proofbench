@@ -438,6 +438,49 @@ def test_the_injector_module_cannot_reach_the_configuration() -> None:
     assert not reads, f"the injector reads configuration attribute(s) {sorted(reads)}"
 
 
+def test_the_configuration_walk_can_actually_see_a_violation() -> None:
+    """The positive control for the walk above, which passes by absence.
+
+    Added after a gate in commit 8 produced a false GREEN. Three assertions in the
+    previous test are of the form "this set is empty", and an empty set is exactly what
+    a broken walk returns. Without this, a typo in the node types would be
+    indistinguishable from an injector that is genuinely configuration-blind.
+
+    So the same two extractions are run against source that does contain violations,
+    and both have to find them.
+    """
+    guilty = ast.parse(
+        "from proofbench.core.configs import GOOD\n"
+        "def fire(configuration):\n"
+        '    if configuration.name == "good":\n'
+        "        return\n"
+        "    return configuration.transactional\n"
+    )
+
+    imported = {node.module for node in ast.walk(guilty) if isinstance(node, ast.ImportFrom)}
+    assert "proofbench.core.configs" in imported
+
+    docstrings: set[int] = set()
+    named = {
+        node.value
+        for node in ast.walk(guilty)
+        if isinstance(node, ast.Constant)
+        and isinstance(node.value, str)
+        and id(node) not in docstrings
+        and node.value in ("good", "baseline")
+    }
+    assert named == {"good"}, "the string-literal walk cannot see a configuration name"
+
+    reads = {
+        node.attr
+        for node in ast.walk(guilty)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in ("configuration", "config")
+    }
+    assert reads == {"name", "transactional"}, "the attribute walk cannot see a config read"
+
+
 def test_the_injector_signature_takes_no_configuration() -> None:
     """It cannot branch on what it is never given."""
     for function in (select_injector, SeededFault.__init__):

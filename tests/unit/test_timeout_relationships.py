@@ -305,8 +305,13 @@ def test_the_new_durations_are_absent_from_the_frozen_schedule(settings: Setting
     ):
         assert name not in flattened, f"{name} reached the frozen schedule artifact"
 
-    # And the values themselves are not hiding in there under another name.
-    assert settings.broker_outage_ms not in constants.get("client_tuning", {}).values()
+    # And the values themselves are not hiding in there under another name. The key is
+    # asserted present first: .get with a default would return an empty mapping if the
+    # artifact's shape changed, and "not in {}" is true of everything.
+    assert "client_tuning" in constants, "the artifact has no client_tuning block to check"
+    assert constants["client_tuning"], "the client_tuning block is empty, so this checks nothing"
+    assert settings.broker_outage_ms not in constants["client_tuning"].values()
+    assert settings.producer_message_timeout_ms not in constants["client_tuning"].values()
 
 
 def test_the_harness_never_sets_the_transaction_timeout(settings: Settings) -> None:

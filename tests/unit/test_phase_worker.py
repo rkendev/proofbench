@@ -44,6 +44,34 @@ def _called_names() -> set[str]:
     }
 
 
+def test_the_walks_find_something_before_anything_relies_on_them_finding_nothing() -> None:
+    """The positive control for every "not in" assertion below.
+
+    Added after a gate in commit 8 produced a false GREEN rather than refusing to go
+    red, which is the more dangerous failure: a guard that cannot fire looks exactly
+    like a guard with nothing to report.
+
+    Every provisioning check below is of the form ``name not in _imported_names()``.
+    If the walk returned an empty set, because the AST shape changed or the helper
+    broke, all four would pass while checking nothing at all. So the helpers are
+    pinned against names the worker demonstrably does have.
+    """
+    imported = _imported_names()
+    called = _called_names()
+
+    assert imported, "the import walk found nothing, so every 'not in' check below is vacuous"
+    assert called, "the call walk found nothing, so every 'not in' check below is vacuous"
+
+    # Names the worker certainly imports and calls, so a broken walk cannot hide.
+    assert {"ingest", "process", "select_injector", "RunState"} <= imported
+    assert {"ingest", "process", "select_injector"} <= called
+
+    # And the walk can distinguish present from absent, which is the property the
+    # "not in" assertions actually depend on.
+    assert "provision" not in imported
+    assert "load_schedule_entry" in imported
+
+
 # --------------------------------------------------------------------------
 # What the child must not do
 # --------------------------------------------------------------------------

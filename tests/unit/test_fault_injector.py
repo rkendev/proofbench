@@ -70,7 +70,18 @@ def _state(fired: bool = False) -> RunState:
 
 @pytest.fixture(scope="module")
 def settings() -> Settings:
-    return Settings(_env_file=None)
+    """Frozen defaults, but with the D4 hold disabled.
+
+    The hold is 10 seconds of deliberate waiting, and several tests below drive the
+    injector through the saga-boundary seam where it fires. Paying it in a unit suite
+    would add minutes for no information: what the hold does is tested directly in
+    test_the_hold_* below and against a live broker in the integration suite.
+
+    fault_hold_intervals is apparatus tuning rather than a frozen experiment constant,
+    so overriding it here changes nothing the contract fixes. The default of 2 is
+    asserted by tests/unit/test_timeout_relationships.py against real Settings.
+    """
+    return Settings(_env_file=None).model_copy(update={"fault_hold_intervals": 0})
 
 
 class RecordingInjector:

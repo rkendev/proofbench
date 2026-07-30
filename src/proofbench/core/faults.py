@@ -50,6 +50,7 @@ from __future__ import annotations
 import os
 import signal
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -88,6 +89,11 @@ RESUME_TOKEN_FILE = "broker_fault_released.json"
 # which would produce a run labelled broker_stop_start in which no outage happened.
 _RENDEZVOUS_TIMEOUT_S = 120.0
 _RENDEZVOUS_POLL_S = 0.1
+
+
+def _never_open() -> bool:
+    """The default transaction probe, for callers with no producer to ask."""
+    return False
 
 
 @runtime_checkable
@@ -163,6 +169,42 @@ class SeededFault:
 
     def saga_started(self, saga_index: int) -> None:
         self._current_saga = saga_index
+        if PHASE_OF_FAULT[self._fault_type] != "process":
+            return
+        if saga_index != self._saga_index:
+            return
+        self._hold_for_the_commit_interval()
+
+    def _hold_for_the_commit_interval(self) -> None:
+        """Wait long enough for the configuration's own commit timer to act once.
+
+        The D4 repair, and ADR-0004 records the argument in full. The short version:
+        ``baseline_auto_commit_interval_ms`` is frozen at 5000 and the whole baseline
+        execution measures about 2 seconds, so the first interval tick lands after the
+        run has ended and librdkafka's commit on ``close`` is skipped by a SIGKILL. No
+        offset is ever committed during the baseline process phase, which means
+        commit-before-processing, the defect C2 exists to measure, never fires. Worse,
+        the restarted consumer then finds no committed offset at all and replays from
+        offset 0, in direct contradiction of ADR-0003 section 7.
+
+        Two frozen constants that are mutually inoperative, and neither may move. So
+        the harness waits instead.
+
+        **What the hold decides and what it does not.** It decides only whether the
+        mechanism acts. It contributes no number to the measurement: once the commit
+        has fired, how much is lost is fixed entirely by ``consumer_max_batch_records``,
+        which sets how far the committed offset runs ahead of applied work, and by the
+        frozen fault point, which sets where in that batch the kill lands.
+
+        Identical code and identical unconditional duration in both configurations, and
+        inert under the good one, where ``enable.auto.commit`` is false and there is no
+        timer to give an opportunity to.
+
+        At the saga boundary, before any transaction bracket opens, so the wait is
+        outside the transaction-timeout budget. That is asserted rather than assumed:
+        see ``FaultInjectingWriter.saga_started``.
+        """
+        time.sleep(self._settings.fault_hold_ms / 1000.0)
 
     def step_produced(self, saga_index: int, step_index: int) -> None:
         if self._fault_type != FAULT_PRODUCER_SIGKILL:
@@ -276,14 +318,42 @@ class FaultInjectingWriter:
     sufficient and needs no knowledge of topic names.
     """
 
-    def __init__(self, inner: Any, injector: SagaFaultInjector) -> None:
+    def __init__(
+        self,
+        inner: Any,
+        injector: SagaFaultInjector,
+        transaction_open: Callable[[], bool] | None = None,
+    ) -> None:
         self._inner = inner
         self._injector = injector
+        self._transaction_open = transaction_open if transaction_open is not None else _never_open
         self._flushes = 0
 
     def saga_started(self, saga_index: int) -> None:
-        """Reset the per-saga flush counter and tell the injector where we are."""
+        """Reset the per-saga flush counter and tell the injector where we are.
+
+        The transaction check is an invariant of the process loop rather than a
+        property of the fault: each saga's transaction begins after this point and is
+        committed or aborted before the next saga starts, so no transaction can be open
+        here on any run, injected or not. Asserting it always is both simpler and
+        stronger than asserting it only when a hold is about to happen.
+
+        It is load-bearing for the arithmetic in ADR-0004. The combined
+        open-transaction bound reserves ``broker_outage_ms + txn_headroom_ms`` inside
+        the pinned 60s transaction timeout and deliberately excludes the 10s hold. That
+        exclusion is only sound if the hold never sits inside a transaction, and this
+        is what makes it so. With the hold inside, the slack falls from 15s to 5s and a
+        busy host could push a broker run's transaction into a timeout, which would
+        present as a fatal error and void the matrix from a single run.
+        """
         self._flushes = 0
+        if self._transaction_open():
+            raise ApparatusFailure(
+                "a saga began while a transaction was still open. Any hold at this "
+                "point would sit inside the transaction, which the combined bound in "
+                "ADR-0004 assumes it never does, and the run's transaction-timeout "
+                "headroom would be 5s rather than 15s."
+            )
         self._injector.saga_started(saga_index)
 
     def produce(self, topic: str, key: str, value: bytes) -> None:

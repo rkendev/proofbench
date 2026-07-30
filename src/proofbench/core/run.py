@@ -567,7 +567,7 @@ def process(
     # untouched, and so is the unit test that pins the frozen ordering it implements:
     # that test is the only guard on a decision the control run cannot observe, so the
     # fault seam goes around the function rather than into it.
-    writer = FaultInjectingWriter(sender, injector)
+    writer = FaultInjectingWriter(sender, injector, lambda: sender.txn.transaction_open)
     transactional = configuration.transactional
     if transactional:
         sender.txn.init()

@@ -65,7 +65,12 @@ from proofbench.core.txn import (
     AccountedProducer,
     TransactionLedger,
 )
-from proofbench.core.window import WindowState, is_within_fault_window, why_apparatus_failure
+from proofbench.core.window import (
+    WindowState,
+    assert_boundary_discriminates,
+    is_within_fault_window,
+    why_apparatus_failure,
+)
 from proofbench.interfaces.ledger import LedgerDiff, SideEffectRecord
 
 # How long a transactional call may take before the client gives up. Passed
@@ -315,6 +320,9 @@ def resolve_delivery_error(
     here. This function's job is only to keep the run alive so that the diff can
     see it.
     """
+    # The boundary fails open and silently, so it is asked two questions with known
+    # answers before it is trusted with a real one.
+    assert_boundary_discriminates()
     if not is_within_fault_window(state):
         raise DeliveryFailure(
             f"{failure}. This is outside any expected fault window, because "
@@ -746,6 +754,27 @@ def verify(
 # --------------------------------------------------------------------------
 
 
+def reported_loss_count(sinks: Sequence[SinkOutcome]) -> int:
+    """How many records the diffs say were lost, counted per sink.
+
+    One of two deliberately separate routes to the same fact. This one counts records
+    without looking at their contents; ``lost_keys_of`` builds a set of identities
+    across sinks. A single bug is unlikely to move both the same way, which is what
+    makes comparing them worth the two lines.
+    """
+    return sum(len(sink.diff.lost) for sink in sinks)
+
+
+def lost_keys_of(sinks: Sequence[SinkOutcome]) -> list[str]:
+    """The distinct idempotency keys the diffs report as lost.
+
+    Named rather than inlined so the attributability control has something to compare
+    against, and so the two routes are visibly different code rather than the same
+    comprehension written twice.
+    """
+    return sorted({record.idempotency_key for sink in sinks for record in sink.diff.lost})
+
+
 def assert_losses_are_attributable(
     configuration: RunConfiguration,
     sinks: Sequence[SinkOutcome],
@@ -770,7 +799,29 @@ def assert_losses_are_attributable(
     commit-before-processing produced, so the loss C2 measures is explained by the
     mechanism CLAIMS.md names rather than merely observed.
     """
-    lost_keys = sorted({record.idempotency_key for sink in sinks for record in sink.diff.lost})
+    # The positive control, and the reason it is here rather than in a test.
+    #
+    # This invariant is SUPPOSED to be vacuous when nothing was lost: no loss means
+    # nothing to attribute, and under the good configuration that is the expected
+    # shape of every run. The hazard is that a broken extraction produces exactly the
+    # same emptiness. A wrong attribute, a diff shape that changed, a comprehension
+    # that ranges over the wrong thing: each yields no keys, the early return fires,
+    # and a run with real unattributable loss sails through reporting a claim result.
+    #
+    # So the extraction is cross-checked against a count computed a different way. The
+    # diff already knows how many records it lost; if it says some and the extraction
+    # says none, the extraction is broken rather than the run being clean. That is
+    # what distinguishes "nothing was lost" from "the walk cannot see loss".
+    reported = reported_loss_count(sinks)
+    lost_keys = lost_keys_of(sinks)
+
+    if reported and not lost_keys:
+        raise ApparatusFailure(
+            f"the sink diffs report {reported} lost record(s) but the attributability "
+            f"check extracted no keys from them, so the check cannot see the loss it "
+            f"exists to explain. That is a defect in the check rather than a result, "
+            f"and the run reports no result rather than a clean one."
+        )
     if not lost_keys:
         return
 

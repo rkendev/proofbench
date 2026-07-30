@@ -155,8 +155,49 @@ class RecoveryBudget:
                 f"result. Recovery history: {self.reasons}"
             )
 
+    def assert_consistent(self) -> None:
+        """Refuse to report a budget whose counters and history disagree.
+
+        The positive control for the bound, and it is needed because the bound fails
+        **open**. ``record`` is the only thing that increments ``reinits``, and the
+        bound only fires when ``reinits`` exceeds the limit. If some path ever
+        recovered without going through ``record``, the counter would stay at zero,
+        the bound would never fire, and a run that re-initialised its producer a
+        hundred times would be indistinguishable from a run that never needed to.
+
+        That is precisely the failure this class was written to prevent: its own
+        docstring says a run that recovered indefinitely would look like a run that
+        never failed. Zero reinits on a clean run and zero reinits because nothing is
+        counting are the same evidence.
+
+        The check is that every recorded action appended exactly one reason, so the
+        history length and the counter total have to agree. A recovery that bypassed
+        ``record`` moves neither, but a recovery that moved a counter without a reason,
+        or a reason without a counter, is caught here. Combined with the run summary
+        carrying both, a reader can see the two agree rather than trusting that they do.
+        """
+        counted = self.retries + self.aborts + self.reinits
+        if len(self.reasons) != counted:
+            raise ApparatusFailure(
+                f"the recovery budget recorded {counted} action(s) across its counters "
+                f"but holds {len(self.reasons)} reason(s) in its history. The two are "
+                f"written by the same call, so they cannot disagree unless something "
+                f"recovered without being counted, in which case the three-re-init "
+                f"bound is not being enforced and this run reports no result."
+            )
+        if self.max_reinits <= 0:
+            raise ApparatusFailure(
+                f"the producer re-initialisation limit is {self.max_reinits}, so the "
+                f"bound ADR-0003 section 6 sets cannot be enforced"
+            )
+
     def to_jsonable(self) -> dict[str, Any]:
-        """Return the form written into a run's evidence."""
+        """Return the form written into a run's evidence.
+
+        Consistency is checked on the way out, so every run in the matrix exercises the
+        control rather than only the runs that happened to need recovery.
+        """
+        self.assert_consistent()
         return {
             "producer_reinits": self.reinits,
             "retries": self.retries,

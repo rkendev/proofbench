@@ -49,6 +49,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Protocol
 
+from proofbench.core.recovery import ApparatusFailure
+
 
 class DeliveryDisposition(Enum):
     """What a delivery failure is, before anything is done about it."""
@@ -139,6 +141,50 @@ def _unmet(state: WindowState) -> str | None:
 def is_within_fault_window(state: WindowState) -> bool:
     """True when all four conditions hold. The conjunction, and nothing else."""
     return _unmet(state) is None
+
+
+# Two states with known answers, used as the runtime positive control below.
+_DEFINITELY_OUT = WindowFacts(
+    entry_names_a_fault=False,
+    fault_has_fired=False,
+    window_closed=True,
+    budget_exhausted=True,
+)
+_DEFINITELY_IN = WindowFacts(
+    entry_names_a_fault=True,
+    fault_has_fired=True,
+    window_closed=False,
+    budget_exhausted=False,
+)
+
+
+def assert_boundary_discriminates() -> None:
+    """Refuse to use the boundary if it has stopped telling the two cases apart.
+
+    A positive control on the run path, not in a test, because this predicate fails
+    **open** and silently. On a healthy run it is never consulted at all: no delivery
+    fails, so nothing asks the question. That means a boundary stuck at True and a run
+    with no delivery errors are indistinguishable from the outside, right up until the
+    matrix absorbs a genuine apparatus break as recovery and ships the number as a
+    measurement.
+
+    Stuck at True is the dangerous direction: every apparatus failure would be handed
+    to the recovery contract instead of ending the run, and C2 would inflate for free
+    on evidence that looks perfectly ordinary. Stuck at False is the PB-T2 behaviour
+    and merely voids the broker runs, which is visible as a hole in the matrix.
+
+    So before the boundary is trusted with a real decision, it is asked two questions
+    whose answers are fixed by construction. It costs two dictionary-free comparisons
+    and it converts a silent failure into a loud one.
+    """
+    if is_within_fault_window(_DEFINITELY_IN) and not is_within_fault_window(_DEFINITELY_OUT):
+        return
+    raise ApparatusFailure(
+        "the fault-window boundary no longer distinguishes an in-window delivery "
+        "failure from an out-of-window one, so it cannot be used to decide whether a "
+        "failure is part of the injected fault or a break in the apparatus. Every "
+        "result from this run would be unsafe, so it reports none."
+    )
 
 
 def classify_delivery_failure(state: WindowState) -> DeliveryDisposition:

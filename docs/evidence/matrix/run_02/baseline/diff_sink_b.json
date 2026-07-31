@@ -1,0 +1,545 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "duplicated": 0,
+  "duplicated_records": [],
+  "is_clean": false,
+  "lost": 76,
+  "lost_records": [
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0108:create_ticket",
+      "payload_checksum": "2610b4d4acf72d2820a45e6f1ed2e549c9cf006fe21c9b9e40fd40ce40e59ba5",
+      "saga_id": "ae7f6d9f848f6566-0108",
+      "sequence": 324,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0108:charge_card",
+      "payload_checksum": "13ba9a2b64f1c372a8800d40b49775e0d089818b7df49c4668d8d53aba9c6bc5",
+      "saga_id": "ae7f6d9f848f6566-0108",
+      "sequence": 325,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0108:send_confirmation",
+      "payload_checksum": "4bfbe9267b4007ca0818a3ee1b401d4bf2fc5fde1eb3dff1f7b83fb1d4130ce4",
+      "saga_id": "ae7f6d9f848f6566-0108",
+      "sequence": 326,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0109:create_ticket",
+      "payload_checksum": "574e1ce5b2aad97852317cb840ef933f5dada1ac064a0fc3ca82e61450f1d239",
+      "saga_id": "ae7f6d9f848f6566-0109",
+      "sequence": 327,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0109:charge_card",
+      "payload_checksum": "bc1659ead41b481308503faa85e8d4bf067f5f679fe382ffdb14af5b1a7ab364",
+      "saga_id": "ae7f6d9f848f6566-0109",
+      "sequence": 328,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0109:send_confirmation",
+      "payload_checksum": "2b0db05e2ef7cc4f8c9495aac510d2f37d3e7e98553a35ad2138ff29e4784dee",
+      "saga_id": "ae7f6d9f848f6566-0109",
+      "sequence": 329,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0110:create_ticket",
+      "payload_checksum": "7afe2373f398288efe5b5efcd9157971533d06ce134334f77c4f8790f8ea2995",
+      "saga_id": "ae7f6d9f848f6566-0110",
+      "sequence": 330,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0110:charge_card",
+      "payload_checksum": "e97165eb22f03a625f675fad36f5c641334248deeedf352cb8e41ca63308ef23",
+      "saga_id": "ae7f6d9f848f6566-0110",
+      "sequence": 331,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0110:send_confirmation",
+      "payload_checksum": "cf1b2f2b546af303e9939d1c6756a8eb73b0f1dbf8344dcec1291e707d8ab328",
+      "saga_id": "ae7f6d9f848f6566-0110",
+      "sequence": 332,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0111:create_ticket",
+      "payload_checksum": "6802675fe4635cdcecb20bcddec483b72c82b5944651a9a9ce18dfbddabc41c7",
+      "saga_id": "ae7f6d9f848f6566-0111",
+      "sequence": 333,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0111:charge_card",
+      "payload_checksum": "fc43ee792637761b727eb349de3be9c88f56c1aedaf54a76c647d8131adc35b1",
+      "saga_id": "ae7f6d9f848f6566-0111",
+      "sequence": 334,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0111:send_confirmation",
+      "payload_checksum": "91375ac7655a0d383a9f85be0c182b5224a60655c5ec7d48cf292745483ba0ca",
+      "saga_id": "ae7f6d9f848f6566-0111",
+      "sequence": 335,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0112:create_ticket",
+      "payload_checksum": "f917b116db15169fcbe0dab8751bdb2c5a5a4466e9719e20c7267608f7c1a21c",
+      "saga_id": "ae7f6d9f848f6566-0112",
+      "sequence": 336,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0112:charge_card",
+      "payload_checksum": "4070982a6dc485df710ae0c10b32e4f26fe91a29f755adf3770525625d793824",
+      "saga_id": "ae7f6d9f848f6566-0112",
+      "sequence": 337,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0112:send_confirmation",
+      "payload_checksum": "9ab9397889978f72958ddc7471242d4c5ba03c2b35dba99458732343a7e6dcc7",
+      "saga_id": "ae7f6d9f848f6566-0112",
+      "sequence": 338,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0113:create_ticket",
+      "payload_checksum": "805eec4e7fe531f6028cc2229bcee70a894104c30c24d8669983d166070adfbb",
+      "saga_id": "ae7f6d9f848f6566-0113",
+      "sequence": 339,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0113:charge_card",
+      "payload_checksum": "7853015374d568dc49c00673b76125e070e2c6212b363e9c363ce653cbe14372",
+      "saga_id": "ae7f6d9f848f6566-0113",
+      "sequence": 340,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0113:send_confirmation",
+      "payload_checksum": "806e68a8a1bdcc66d063315b5bc87357347ac8dc4bc7b2dcbbce654bfa5f5639",
+      "saga_id": "ae7f6d9f848f6566-0113",
+      "sequence": 341,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0114:create_ticket",
+      "payload_checksum": "a7b8f88791322aaa58eed7a7fc006d4500f3983a902cf7595d612964cb65c2e3",
+      "saga_id": "ae7f6d9f848f6566-0114",
+      "sequence": 342,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0114:charge_card",
+      "payload_checksum": "f1bf0783863c941e13eca8f20797a047864ee1e6fb2165b2caa987f7faa1caff",
+      "saga_id": "ae7f6d9f848f6566-0114",
+      "sequence": 343,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0114:send_confirmation",
+      "payload_checksum": "7ec429d78ad951cf6c1b8a0131e8f00f3e9af4869d24d9cb52ae159eefb18f30",
+      "saga_id": "ae7f6d9f848f6566-0114",
+      "sequence": 344,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0115:create_ticket",
+      "payload_checksum": "de9485380fb7ae4652896bf69f23eb40f96c6b412539caa797a148bb8a4aeacd",
+      "saga_id": "ae7f6d9f848f6566-0115",
+      "sequence": 345,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0115:charge_card",
+      "payload_checksum": "c137b52d77501bfe1da7a4c242d7db6f140ff317f1dd5763fddbf8f99a6f3226",
+      "saga_id": "ae7f6d9f848f6566-0115",
+      "sequence": 346,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0115:send_confirmation",
+      "payload_checksum": "168aeb71fea72571979ea43517e71ff41a9b1d7d26904507e6c600486cc63d4a",
+      "saga_id": "ae7f6d9f848f6566-0115",
+      "sequence": 347,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0116:create_ticket",
+      "payload_checksum": "cdd33811138a95f807be33d14cfdec7d5e7a530adfc1f8ad1475403a2b91b6ac",
+      "saga_id": "ae7f6d9f848f6566-0116",
+      "sequence": 348,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0116:charge_card",
+      "payload_checksum": "6f133f8540a55472bd2298618dd3633c070b489de6b7b0afb3968974af185a26",
+      "saga_id": "ae7f6d9f848f6566-0116",
+      "sequence": 349,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0116:send_confirmation",
+      "payload_checksum": "66eee2f9151955f00cbc61cc5be600207b89cbfbd081dc32057631e2326f0974",
+      "saga_id": "ae7f6d9f848f6566-0116",
+      "sequence": 350,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0117:create_ticket",
+      "payload_checksum": "e3bc3df01c502a53b37b7c384b45a1c5cb0e7f70bc5a7decaf6c4970cf7a468c",
+      "saga_id": "ae7f6d9f848f6566-0117",
+      "sequence": 351,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0117:charge_card",
+      "payload_checksum": "937698ff6eb5ce94d3a6b3f52e6af96c000a6d5bb8e4825d1d5b044b2a26f687",
+      "saga_id": "ae7f6d9f848f6566-0117",
+      "sequence": 352,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0117:send_confirmation",
+      "payload_checksum": "8ce03fc320fa59fef96b447ef07cd2d12ef0f6f2cd957a09e91054c2c1eb74d0",
+      "saga_id": "ae7f6d9f848f6566-0117",
+      "sequence": 353,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0118:create_ticket",
+      "payload_checksum": "3bff966993ffaaa428c5e44673f536b6dd1d6b572cd832e8bc0c0adb22e9f242",
+      "saga_id": "ae7f6d9f848f6566-0118",
+      "sequence": 354,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0118:charge_card",
+      "payload_checksum": "335386b8d8651f2c9d1c19266542f4671387661c26fb1fcc5f9976250baf9d6f",
+      "saga_id": "ae7f6d9f848f6566-0118",
+      "sequence": 355,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0118:send_confirmation",
+      "payload_checksum": "fd1eb293d986a7c9a7d6fbd8ed770f2ca53e52be98860702ad7565567a12cbc8",
+      "saga_id": "ae7f6d9f848f6566-0118",
+      "sequence": 356,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0119:create_ticket",
+      "payload_checksum": "d4541b230dedf424ceb347578c674d0b7259b097d5967e3e4f14078190ec2464",
+      "saga_id": "ae7f6d9f848f6566-0119",
+      "sequence": 357,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0119:charge_card",
+      "payload_checksum": "fa8f9530206cab85ccbf4fdbec4bd2041b382e71ae3cffc8187928f2f5fdd260",
+      "saga_id": "ae7f6d9f848f6566-0119",
+      "sequence": 358,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0119:send_confirmation",
+      "payload_checksum": "1163b370b7d75b60060756cedf83a3a04a12c768f61064ca138e199cd21a345e",
+      "saga_id": "ae7f6d9f848f6566-0119",
+      "sequence": 359,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0120:create_ticket",
+      "payload_checksum": "e53cde32e3c30695c5ef47fed69ee0595a06d198546b8f891ecad1a22cd460d8",
+      "saga_id": "ae7f6d9f848f6566-0120",
+      "sequence": 360,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0120:charge_card",
+      "payload_checksum": "3cabba42eef69c0f8f97aec386256f3a8ea428b2ae00f0b9f60d9486a2d236b9",
+      "saga_id": "ae7f6d9f848f6566-0120",
+      "sequence": 361,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0120:send_confirmation",
+      "payload_checksum": "6932f7c2f1b51d9ac4f365cba88d3bf10c085f42f4330b376b7a285d94e49521",
+      "saga_id": "ae7f6d9f848f6566-0120",
+      "sequence": 362,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0121:create_ticket",
+      "payload_checksum": "52e0796b0ee22f993dfabb4a21c5aa1a23579e16d29df16682a62c46e78d7809",
+      "saga_id": "ae7f6d9f848f6566-0121",
+      "sequence": 363,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0121:charge_card",
+      "payload_checksum": "f165e41b1f2959c20bf95aece1b39bf8648b1b9aa58bb6f72f1d785788cb162b",
+      "saga_id": "ae7f6d9f848f6566-0121",
+      "sequence": 364,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0121:send_confirmation",
+      "payload_checksum": "9c0853dce555eea402fc80cebd393d57400cdd173a4b263cda081c4b8ebdb35f",
+      "saga_id": "ae7f6d9f848f6566-0121",
+      "sequence": 365,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0122:create_ticket",
+      "payload_checksum": "cd5caadab4fdffc7689223dc1384d8b6dc782985ab827213be83427627eafb60",
+      "saga_id": "ae7f6d9f848f6566-0122",
+      "sequence": 366,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0122:charge_card",
+      "payload_checksum": "e4b3dd96ec47bb8efaa15bde92dd3ad8ed0ed03704550964924dc3172177a156",
+      "saga_id": "ae7f6d9f848f6566-0122",
+      "sequence": 367,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0122:send_confirmation",
+      "payload_checksum": "4c62b1f6d9a6bf76fa7e69a41f68644d56b1c079bd1218d352445dde2a36480d",
+      "saga_id": "ae7f6d9f848f6566-0122",
+      "sequence": 368,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0123:create_ticket",
+      "payload_checksum": "25a1e7deadc39ddca987233f1737dfec74635642bdf1edc992a59cb555473d32",
+      "saga_id": "ae7f6d9f848f6566-0123",
+      "sequence": 369,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0123:charge_card",
+      "payload_checksum": "54ddf7a4b49ea7b51c4f698ce9b3ecac558c268353453a9a513e9b40741df563",
+      "saga_id": "ae7f6d9f848f6566-0123",
+      "sequence": 370,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0123:send_confirmation",
+      "payload_checksum": "5974816c2c323dd8ca1d16d93602d04b2b01beadededfb997aa733f75ea8deda",
+      "saga_id": "ae7f6d9f848f6566-0123",
+      "sequence": 371,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0124:create_ticket",
+      "payload_checksum": "a12f2252b06086a0cf051bde66c6728e09ca91d4fa70a198d3ca9756ba681cf3",
+      "saga_id": "ae7f6d9f848f6566-0124",
+      "sequence": 372,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0124:charge_card",
+      "payload_checksum": "745d300788fb8ecde381b00dacc81b6fb3b7971c9e0e01a8cbc46f66113fcf2e",
+      "saga_id": "ae7f6d9f848f6566-0124",
+      "sequence": 373,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0124:send_confirmation",
+      "payload_checksum": "ff832e710f1c148ed555e34bd4bc3caaf2be1226ff14d3aad22ea6adfa3969e0",
+      "saga_id": "ae7f6d9f848f6566-0124",
+      "sequence": 374,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0125:create_ticket",
+      "payload_checksum": "7928163613663018bbc8424340e0449910c52a933339c164744179f066a1c6c7",
+      "saga_id": "ae7f6d9f848f6566-0125",
+      "sequence": 375,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0125:charge_card",
+      "payload_checksum": "b7afbf58934e23c319d363ff278043eac2e2228e611ad599bf170d102b3765bc",
+      "saga_id": "ae7f6d9f848f6566-0125",
+      "sequence": 376,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0125:send_confirmation",
+      "payload_checksum": "07c48f24375fff95580c397548358da78a3bf3af7113d3bafdc0f0c96543c7b1",
+      "saga_id": "ae7f6d9f848f6566-0125",
+      "sequence": 377,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0126:create_ticket",
+      "payload_checksum": "68849d67b508df0a30f37b3ed0e3c58b2545eae693163e4fbe2baff926545eac",
+      "saga_id": "ae7f6d9f848f6566-0126",
+      "sequence": 378,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0126:charge_card",
+      "payload_checksum": "311408c524aee870cdbe3519f42465821dd6337c4c66ef47b4fdb818aa8db149",
+      "saga_id": "ae7f6d9f848f6566-0126",
+      "sequence": 379,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0126:send_confirmation",
+      "payload_checksum": "eae49c6354a0a8917163ddfb6654622a4212d41eb7ed4922666331589ef90828",
+      "saga_id": "ae7f6d9f848f6566-0126",
+      "sequence": 380,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0127:create_ticket",
+      "payload_checksum": "20e1233c40f07826eacfe85a4d5725fd919197e05768d43411a2ad7f7042a329",
+      "saga_id": "ae7f6d9f848f6566-0127",
+      "sequence": 381,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0127:charge_card",
+      "payload_checksum": "2c9b7cba4dce8acf8418de4143cada39a037e47e4155db3241c42a8e84e10838",
+      "saga_id": "ae7f6d9f848f6566-0127",
+      "sequence": 382,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0127:send_confirmation",
+      "payload_checksum": "e80ef7d37ede2624d0a6141aa82a26c344ed40d8067936ff9675707812a22b87",
+      "saga_id": "ae7f6d9f848f6566-0127",
+      "sequence": 383,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0128:create_ticket",
+      "payload_checksum": "b96b70797980fa8f474495deee12fccfaea5eae28749cfa5875a332b0a3af58d",
+      "saga_id": "ae7f6d9f848f6566-0128",
+      "sequence": 384,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0128:charge_card",
+      "payload_checksum": "469982f9e459539f3c0b21f1d48c81576098b683d0fea6e5bd13775a7bfda2ce",
+      "saga_id": "ae7f6d9f848f6566-0128",
+      "sequence": 385,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0128:send_confirmation",
+      "payload_checksum": "ea0ba1c2538b05584ef1012d3582537d0d46a53f9b786a93fa6501f89a77530c",
+      "saga_id": "ae7f6d9f848f6566-0128",
+      "sequence": 386,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0129:create_ticket",
+      "payload_checksum": "d1e3e22ef570aa8bd9158299661bf009e44da46bf48e429f6659bf8c972064e2",
+      "saga_id": "ae7f6d9f848f6566-0129",
+      "sequence": 387,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0129:charge_card",
+      "payload_checksum": "bd8b6bf21c868e8f6b4d5b2dab4a41a29688d4cfd49e1f8e681e72c124ec4c59",
+      "saga_id": "ae7f6d9f848f6566-0129",
+      "sequence": 388,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0129:send_confirmation",
+      "payload_checksum": "bc4d61b0b39fe7b413a7a31cba5973e979cff2f3575872c04783ee88dcc1bbdc",
+      "saga_id": "ae7f6d9f848f6566-0129",
+      "sequence": 389,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0130:create_ticket",
+      "payload_checksum": "4c76423868639d180b1b27ce08f7941447d9912c8ad5e90a361a80e27cfc9998",
+      "saga_id": "ae7f6d9f848f6566-0130",
+      "sequence": 390,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0130:charge_card",
+      "payload_checksum": "4568f4d2a8de86edc19211446f77241ba15c2574e5fee0c3dfa617436ca39f97",
+      "saga_id": "ae7f6d9f848f6566-0130",
+      "sequence": 391,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0130:send_confirmation",
+      "payload_checksum": "a7e2ef328e673877edfeeed10bec5dc1016e9d2b9e4d6ceb99a02f33671cd913",
+      "saga_id": "ae7f6d9f848f6566-0130",
+      "sequence": 392,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0131:create_ticket",
+      "payload_checksum": "287f20c44a6abfc75c58b57c77e54addac35489b3e500c5cc20019c363a03cc9",
+      "saga_id": "ae7f6d9f848f6566-0131",
+      "sequence": 393,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0131:charge_card",
+      "payload_checksum": "47ddcda3922a943b6a2fce61416c51864682e656c24b191c9c2569baa4441a2c",
+      "saga_id": "ae7f6d9f848f6566-0131",
+      "sequence": 394,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0131:send_confirmation",
+      "payload_checksum": "14f6a6759a9bc39bed1ed93cb18272a8b310be01512d891abc488004004bc0ea",
+      "saga_id": "ae7f6d9f848f6566-0131",
+      "sequence": 395,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0132:create_ticket",
+      "payload_checksum": "09346d7da7dab8fbd41569f748f18af6263998b4f15ec4690466939c6e5f08fb",
+      "saga_id": "ae7f6d9f848f6566-0132",
+      "sequence": 396,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0132:charge_card",
+      "payload_checksum": "93602701f113a2cc766da30696b0afc5ef804cef053c87926ec7faccb5d7e324",
+      "saga_id": "ae7f6d9f848f6566-0132",
+      "sequence": 397,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0132:send_confirmation",
+      "payload_checksum": "b55da176cc97b51bd56c0089562d0cdaa15f86ad2c018bcede0235c9fadbe1aa",
+      "saga_id": "ae7f6d9f848f6566-0132",
+      "sequence": 398,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "ae7f6d9f848f6566-0133:create_ticket",
+      "payload_checksum": "b9700b2b7503c0b52ee90ad5587c7db975977c0481e1e9b8e0671cd048a16ce8",
+      "saga_id": "ae7f6d9f848f6566-0133",
+      "sequence": 399,
+      "step_name": "create_ticket"
+    }
+  ],
+  "records_sent": 524,
+  "records_visible": 524,
+  "sink": "sink_b",
+  "topic": "proofbench.r02.baseline.sink_b"
+}

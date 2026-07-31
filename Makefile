@@ -15,7 +15,8 @@ export PYTHONPATH := src
 COMPOSE := docker compose -p proofbench
 
 .PHONY: bootstrap hooks hygiene verify-versions lint type-check test schedule \
-	trace broker-up broker-down broker-status control-run run-matrix
+	trace broker-up broker-down broker-status control-run run-matrix replay \
+	evaluate-claims
 
 # Idempotent: safe to re-run. Creates the venv only if absent, asserts it is
 # Python 3.12, installs pinned deps, wires the pre-commit git hook where the
@@ -128,3 +129,11 @@ control-run:
 # reports a result.
 run-matrix:
 	$(BIN)/python scripts/run_matrix.py
+
+# C3: replay every scoreable good run and checksum the rebuilt ledger.
+replay:
+	$(BIN)/python scripts/run_replay.py
+
+# C1, C2 and C3 computed from the committed matrix by committed code.
+evaluate-claims:
+	$(BIN)/python scripts/evaluate_claims.py

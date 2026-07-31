@@ -1,0 +1,48 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "configuration": "baseline",
+  "expected_records": 600,
+  "fault_injected": true,
+  "fault_type": "broker_stop_start",
+  "is_clean": false,
+  "process": {},
+  "recovery": {
+    "aborts": 0,
+    "history": [
+      "reinit_producer: delivery failed inside the fault window: 3 record(s) failed delivery, starting with KafkaError{code=_MSG_TIMED_OUT,val=-192,str=\"Local: Message timed out\"}"
+    ],
+    "max_reinits": 3,
+    "producer_reinits": 1,
+    "retries": 0
+  },
+  "run_id": 6,
+  "sinks": [
+    {
+      "duplicated": 3,
+      "is_clean": false,
+      "lost": 0,
+      "records_sent": 603,
+      "records_visible": 603,
+      "sink": "sink_a",
+      "topic": "proofbench.r06.baseline.sink_a"
+    },
+    {
+      "duplicated": 0,
+      "is_clean": true,
+      "lost": 0,
+      "records_sent": 600,
+      "records_visible": 600,
+      "sink": "sink_b",
+      "topic": "proofbench.r06.baseline.sink_b"
+    }
+  ],
+  "status": "not_clean",
+  "transactions": {
+    "aborted": 0,
+    "by_phase_and_role": {},
+    "committed": 0,
+    "max_open_transaction_ms": 0.0
+  },
+  "transactions_aborted": 0,
+  "transactions_committed": 0
+}

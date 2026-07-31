@@ -1,0 +1,13 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "control": false,
+  "fault_point": {
+    "saga_index": 117,
+    "step_index": 2
+  },
+  "fault_type": "broker_stop_start",
+  "run_id": 6,
+  "sagas": 200,
+  "seed": "03635f809f482242",
+  "steps_per_saga": 3
+}

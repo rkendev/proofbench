@@ -1,0 +1,34 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "duplicated": 3,
+  "duplicated_records": [
+    {
+      "idempotency_key": "1f6497c9aa5a8be2-0149:create_ticket",
+      "payload_checksum": "345a6e00b3827f27931362ca026279ef89af7e6415065a9aa0dbc70bf524ec08",
+      "saga_id": "1f6497c9aa5a8be2-0149",
+      "sequence": 447,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "1f6497c9aa5a8be2-0149:charge_card",
+      "payload_checksum": "50d8c1e4bbb6c4b246053c62b09fc97dbf8b9ac9ebb585514a36fb87d73ac255",
+      "saga_id": "1f6497c9aa5a8be2-0149",
+      "sequence": 448,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "1f6497c9aa5a8be2-0149:send_confirmation",
+      "payload_checksum": "fb54a36a64046f1fda2ba418923b1578fdf59dfe8834f12300be076f6a70ef46",
+      "saga_id": "1f6497c9aa5a8be2-0149",
+      "sequence": 449,
+      "step_name": "send_confirmation"
+    }
+  ],
+  "is_clean": false,
+  "lost": 0,
+  "lost_records": [],
+  "records_sent": 603,
+  "records_visible": 603,
+  "sink": "sink_a",
+  "topic": "proofbench.r03.baseline.sink_a"
+}

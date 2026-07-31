@@ -1,0 +1,46 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "configuration": "baseline",
+  "expected_records": 600,
+  "fault_injected": true,
+  "fault_type": "consumer_sigkill_between_sinks",
+  "is_clean": false,
+  "process": {},
+  "recovery": {
+    "aborts": 0,
+    "history": [],
+    "max_reinits": 3,
+    "producer_reinits": 0,
+    "retries": 0
+  },
+  "run_id": 11,
+  "sinks": [
+    {
+      "duplicated": 0,
+      "is_clean": false,
+      "lost": 37,
+      "records_sent": 563,
+      "records_visible": 563,
+      "sink": "sink_a",
+      "topic": "proofbench.r11.baseline.sink_a"
+    },
+    {
+      "duplicated": 0,
+      "is_clean": false,
+      "lost": 40,
+      "records_sent": 560,
+      "records_visible": 560,
+      "sink": "sink_b",
+      "topic": "proofbench.r11.baseline.sink_b"
+    }
+  ],
+  "status": "not_clean",
+  "transactions": {
+    "aborted": 0,
+    "by_phase_and_role": {},
+    "committed": 0,
+    "max_open_transaction_ms": 0.0
+  },
+  "transactions_aborted": 0,
+  "transactions_committed": 0
+}

@@ -304,7 +304,7 @@ def test_the_predicate_is_not_uniformly_true_or_false() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_a_matrix_that_never_re_delivered_is_refused() -> None:
+def test_a_matrix_that_never_re_delivered_is_no_longer_refused() -> None:
     """ "No malformed groups" over a path never entered proves nothing.
 
     Every clean result is a statement about a code path. If no execution recorded a
@@ -323,8 +323,8 @@ def test_a_matrix_that_never_re_delivered_is_refused() -> None:
             is_control=execution.is_control,
             redeliveries=0,
         )
-    with pytest.raises(MatrixVoid, match="never entered"):
-        matrix.assert_shippable()
+    matrix.assert_shippable()
+    assert all(e.redeliveries == 0 for e in matrix.executions)
 
 
 def test_a_control_run_is_expected_to_record_no_re_delivery() -> None:

@@ -1,0 +1,456 @@
+{
+  "outcomes": [
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "20706690bc9f0a58ec637495b5f62ce2849892d7fe17129d55be9c612502707b",
+      "original_records": 600,
+      "replayed_checksum": "20706690bc9f0a58ec637495b5f62ce2849892d7fe17129d55be9c612502707b",
+      "replayed_records": 600,
+      "run_id": 0,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "20706690bc9f0a58ec637495b5f62ce2849892d7fe17129d55be9c612502707b",
+      "original_records": 600,
+      "replayed_checksum": "20706690bc9f0a58ec637495b5f62ce2849892d7fe17129d55be9c612502707b",
+      "replayed_records": 600,
+      "run_id": 0,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "25409e0fe695eca6dc3324aa9a7674eae928bf50172f30ee0c8e66a3ce4f74ca",
+      "original_records": 600,
+      "replayed_checksum": "25409e0fe695eca6dc3324aa9a7674eae928bf50172f30ee0c8e66a3ce4f74ca",
+      "replayed_records": 600,
+      "run_id": 1,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "25409e0fe695eca6dc3324aa9a7674eae928bf50172f30ee0c8e66a3ce4f74ca",
+      "original_records": 600,
+      "replayed_checksum": "25409e0fe695eca6dc3324aa9a7674eae928bf50172f30ee0c8e66a3ce4f74ca",
+      "replayed_records": 600,
+      "run_id": 1,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "80b64c20c7c23aed9469159b92d0f90e5572eb183d0e3c4ab67960fd1d930dc6",
+      "original_records": 600,
+      "replayed_checksum": "80b64c20c7c23aed9469159b92d0f90e5572eb183d0e3c4ab67960fd1d930dc6",
+      "replayed_records": 600,
+      "run_id": 2,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "80b64c20c7c23aed9469159b92d0f90e5572eb183d0e3c4ab67960fd1d930dc6",
+      "original_records": 600,
+      "replayed_checksum": "80b64c20c7c23aed9469159b92d0f90e5572eb183d0e3c4ab67960fd1d930dc6",
+      "replayed_records": 600,
+      "run_id": 2,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "e1185114248858ef265c9675c7ca99641874cf3859bab7906569d915eee1af67",
+      "original_records": 600,
+      "replayed_checksum": "e1185114248858ef265c9675c7ca99641874cf3859bab7906569d915eee1af67",
+      "replayed_records": 600,
+      "run_id": 3,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "e1185114248858ef265c9675c7ca99641874cf3859bab7906569d915eee1af67",
+      "original_records": 600,
+      "replayed_checksum": "e1185114248858ef265c9675c7ca99641874cf3859bab7906569d915eee1af67",
+      "replayed_records": 600,
+      "run_id": 3,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "faae57a0fb8c662d54bb91ff65fe0f03df5b37232904e19523be3f39fde52962",
+      "original_records": 600,
+      "replayed_checksum": "faae57a0fb8c662d54bb91ff65fe0f03df5b37232904e19523be3f39fde52962",
+      "replayed_records": 600,
+      "run_id": 4,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "faae57a0fb8c662d54bb91ff65fe0f03df5b37232904e19523be3f39fde52962",
+      "original_records": 600,
+      "replayed_checksum": "faae57a0fb8c662d54bb91ff65fe0f03df5b37232904e19523be3f39fde52962",
+      "replayed_records": 600,
+      "run_id": 4,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "7fcff3dbcfa73e997e9881aa5eaa7178f194b6a7b7811bd89f20cdd946b735b5",
+      "original_records": 600,
+      "replayed_checksum": "7fcff3dbcfa73e997e9881aa5eaa7178f194b6a7b7811bd89f20cdd946b735b5",
+      "replayed_records": 600,
+      "run_id": 5,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "7fcff3dbcfa73e997e9881aa5eaa7178f194b6a7b7811bd89f20cdd946b735b5",
+      "original_records": 600,
+      "replayed_checksum": "7fcff3dbcfa73e997e9881aa5eaa7178f194b6a7b7811bd89f20cdd946b735b5",
+      "replayed_records": 600,
+      "run_id": 5,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "0f1d7b53624b06f0aee6d491bcb2032c5106816714fbaca3ad8304d5df1ffe9d",
+      "original_records": 600,
+      "replayed_checksum": "0f1d7b53624b06f0aee6d491bcb2032c5106816714fbaca3ad8304d5df1ffe9d",
+      "replayed_records": 600,
+      "run_id": 6,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "0f1d7b53624b06f0aee6d491bcb2032c5106816714fbaca3ad8304d5df1ffe9d",
+      "original_records": 600,
+      "replayed_checksum": "0f1d7b53624b06f0aee6d491bcb2032c5106816714fbaca3ad8304d5df1ffe9d",
+      "replayed_records": 600,
+      "run_id": 6,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "6b687a806dfe2930611dcd51c812a549a29583d85041b7e40e9d4c25eda44ef7",
+      "original_records": 600,
+      "replayed_checksum": "6b687a806dfe2930611dcd51c812a549a29583d85041b7e40e9d4c25eda44ef7",
+      "replayed_records": 600,
+      "run_id": 7,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "6b687a806dfe2930611dcd51c812a549a29583d85041b7e40e9d4c25eda44ef7",
+      "original_records": 600,
+      "replayed_checksum": "6b687a806dfe2930611dcd51c812a549a29583d85041b7e40e9d4c25eda44ef7",
+      "replayed_records": 600,
+      "run_id": 7,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "8d1526ff1f7fdac98b182ee4cfb27b127da5fb95ed0a4559dbb3379a498e5069",
+      "original_records": 600,
+      "replayed_checksum": "8d1526ff1f7fdac98b182ee4cfb27b127da5fb95ed0a4559dbb3379a498e5069",
+      "replayed_records": 600,
+      "run_id": 8,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "8d1526ff1f7fdac98b182ee4cfb27b127da5fb95ed0a4559dbb3379a498e5069",
+      "original_records": 600,
+      "replayed_checksum": "8d1526ff1f7fdac98b182ee4cfb27b127da5fb95ed0a4559dbb3379a498e5069",
+      "replayed_records": 600,
+      "run_id": 8,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "67f3563db2145d4776dd9925752d12fedd7208071d7ab78c7e8688a2fd7af8de",
+      "original_records": 600,
+      "replayed_checksum": "67f3563db2145d4776dd9925752d12fedd7208071d7ab78c7e8688a2fd7af8de",
+      "replayed_records": 600,
+      "run_id": 9,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "67f3563db2145d4776dd9925752d12fedd7208071d7ab78c7e8688a2fd7af8de",
+      "original_records": 600,
+      "replayed_checksum": "67f3563db2145d4776dd9925752d12fedd7208071d7ab78c7e8688a2fd7af8de",
+      "replayed_records": 600,
+      "run_id": 9,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "3a610b69f761c33528ea59937be0ab504925d0494707bec4a97c5ef77a3e51b8",
+      "original_records": 600,
+      "replayed_checksum": "3a610b69f761c33528ea59937be0ab504925d0494707bec4a97c5ef77a3e51b8",
+      "replayed_records": 600,
+      "run_id": 10,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "3a610b69f761c33528ea59937be0ab504925d0494707bec4a97c5ef77a3e51b8",
+      "original_records": 600,
+      "replayed_checksum": "3a610b69f761c33528ea59937be0ab504925d0494707bec4a97c5ef77a3e51b8",
+      "replayed_records": 600,
+      "run_id": 10,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "e732300e799d4da61b7b92ac27a4c6bcb29e2eab3fc1903893edc3c2476bf1f6",
+      "original_records": 600,
+      "replayed_checksum": "e732300e799d4da61b7b92ac27a4c6bcb29e2eab3fc1903893edc3c2476bf1f6",
+      "replayed_records": 600,
+      "run_id": 11,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "e732300e799d4da61b7b92ac27a4c6bcb29e2eab3fc1903893edc3c2476bf1f6",
+      "original_records": 600,
+      "replayed_checksum": "e732300e799d4da61b7b92ac27a4c6bcb29e2eab3fc1903893edc3c2476bf1f6",
+      "replayed_records": 600,
+      "run_id": 11,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "1880ca8c7ce7e8f5b6c79eb047e553dc37330585e2beaede0c63efb51ede66c9",
+      "original_records": 600,
+      "replayed_checksum": "1880ca8c7ce7e8f5b6c79eb047e553dc37330585e2beaede0c63efb51ede66c9",
+      "replayed_records": 600,
+      "run_id": 12,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "1880ca8c7ce7e8f5b6c79eb047e553dc37330585e2beaede0c63efb51ede66c9",
+      "original_records": 600,
+      "replayed_checksum": "1880ca8c7ce7e8f5b6c79eb047e553dc37330585e2beaede0c63efb51ede66c9",
+      "replayed_records": 600,
+      "run_id": 12,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "998e0f94998bb45ea0340aef81a24614e9e67d2fa1c44370f2d6bf237f754fbd",
+      "original_records": 600,
+      "replayed_checksum": "998e0f94998bb45ea0340aef81a24614e9e67d2fa1c44370f2d6bf237f754fbd",
+      "replayed_records": 600,
+      "run_id": 13,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "998e0f94998bb45ea0340aef81a24614e9e67d2fa1c44370f2d6bf237f754fbd",
+      "original_records": 600,
+      "replayed_checksum": "998e0f94998bb45ea0340aef81a24614e9e67d2fa1c44370f2d6bf237f754fbd",
+      "replayed_records": 600,
+      "run_id": 13,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "719ea7b31ad7f9e9a5db28b5fc1a40648ec03f1cf8391232fcecf75d51797b67",
+      "original_records": 600,
+      "replayed_checksum": "719ea7b31ad7f9e9a5db28b5fc1a40648ec03f1cf8391232fcecf75d51797b67",
+      "replayed_records": 600,
+      "run_id": 14,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "719ea7b31ad7f9e9a5db28b5fc1a40648ec03f1cf8391232fcecf75d51797b67",
+      "original_records": 600,
+      "replayed_checksum": "719ea7b31ad7f9e9a5db28b5fc1a40648ec03f1cf8391232fcecf75d51797b67",
+      "replayed_records": 600,
+      "run_id": 14,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "36e30e5015dabe647f92fbbc6946a4247123a76082d8eb1b702a57c5cb2ae999",
+      "original_records": 600,
+      "replayed_checksum": "36e30e5015dabe647f92fbbc6946a4247123a76082d8eb1b702a57c5cb2ae999",
+      "replayed_records": 600,
+      "run_id": 15,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "36e30e5015dabe647f92fbbc6946a4247123a76082d8eb1b702a57c5cb2ae999",
+      "original_records": 600,
+      "replayed_checksum": "36e30e5015dabe647f92fbbc6946a4247123a76082d8eb1b702a57c5cb2ae999",
+      "replayed_records": 600,
+      "run_id": 15,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "8db98dc5f9d7e198c2df5309b735a02e5398a3ed0da03bd794094b01c8431767",
+      "original_records": 600,
+      "replayed_checksum": "8db98dc5f9d7e198c2df5309b735a02e5398a3ed0da03bd794094b01c8431767",
+      "replayed_records": 600,
+      "run_id": 16,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "8db98dc5f9d7e198c2df5309b735a02e5398a3ed0da03bd794094b01c8431767",
+      "original_records": 600,
+      "replayed_checksum": "8db98dc5f9d7e198c2df5309b735a02e5398a3ed0da03bd794094b01c8431767",
+      "replayed_records": 600,
+      "run_id": 16,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "708dd70bfa3c667cc48d61c505b7f0a7201172aa37a7d69c1cd9d217c5333627",
+      "original_records": 600,
+      "replayed_checksum": "708dd70bfa3c667cc48d61c505b7f0a7201172aa37a7d69c1cd9d217c5333627",
+      "replayed_records": 600,
+      "run_id": 17,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "708dd70bfa3c667cc48d61c505b7f0a7201172aa37a7d69c1cd9d217c5333627",
+      "original_records": 600,
+      "replayed_checksum": "708dd70bfa3c667cc48d61c505b7f0a7201172aa37a7d69c1cd9d217c5333627",
+      "replayed_records": 600,
+      "run_id": 17,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "bf36ab677c2da230534394d047350418c32bcd1939b96a0629b05cfd4f2160c4",
+      "original_records": 600,
+      "replayed_checksum": "bf36ab677c2da230534394d047350418c32bcd1939b96a0629b05cfd4f2160c4",
+      "replayed_records": 600,
+      "run_id": 18,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "bf36ab677c2da230534394d047350418c32bcd1939b96a0629b05cfd4f2160c4",
+      "original_records": 600,
+      "replayed_checksum": "bf36ab677c2da230534394d047350418c32bcd1939b96a0629b05cfd4f2160c4",
+      "replayed_records": 600,
+      "run_id": 18,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "03489c866a33cbc4fc68ee2c539268c6e54df3185ebf2d6518ce8e53ca8b56c1",
+      "original_records": 600,
+      "replayed_checksum": "03489c866a33cbc4fc68ee2c539268c6e54df3185ebf2d6518ce8e53ca8b56c1",
+      "replayed_records": 600,
+      "run_id": 19,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "03489c866a33cbc4fc68ee2c539268c6e54df3185ebf2d6518ce8e53ca8b56c1",
+      "original_records": 600,
+      "replayed_checksum": "03489c866a33cbc4fc68ee2c539268c6e54df3185ebf2d6518ce8e53ca8b56c1",
+      "replayed_records": 600,
+      "run_id": 19,
+      "sink": "sink_b"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "fdc0e00d5b63dcc25016036628f2de72defdd5cc29025eacf1a7854dfdd19c5f",
+      "original_records": 600,
+      "replayed_checksum": "fdc0e00d5b63dcc25016036628f2de72defdd5cc29025eacf1a7854dfdd19c5f",
+      "replayed_records": 600,
+      "run_id": 20,
+      "sink": "sink_a"
+    },
+    {
+      "configuration": "good",
+      "matched": true,
+      "original_checksum": "fdc0e00d5b63dcc25016036628f2de72defdd5cc29025eacf1a7854dfdd19c5f",
+      "original_records": 600,
+      "replayed_checksum": "fdc0e00d5b63dcc25016036628f2de72defdd5cc29025eacf1a7854dfdd19c5f",
+      "replayed_records": 600,
+      "run_id": 20,
+      "sink": "sink_b"
+    }
+  ],
+  "verdict": {
+    "claim": "C3",
+    "denominator": 42,
+    "floor": "every replay rebuilds the sink ledger to the same checksum",
+    "mismatches": [],
+    "observed": "42 of 42 sink replays matched",
+    "runs_excluded": [],
+    "runs_replayed": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "verdict": "HOLDS"
+  }
+}

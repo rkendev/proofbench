@@ -733,6 +733,95 @@ mechanism section 15 describes for the broker runs.
 least one side effect, and these lost none. The figure is recorded because it is evidence
 about the apparatus, not because anything is scored on it.
 
+---
+
+## 16. The witness rule, superseded 2026-07-31, with its timing disclosed
+
+**The sequence, stated first, because the timing is the part an auditor needs.**
+
+- **07-30.** A re-delivery witness rule was added to the matrix-validity set at the
+  advisor's instruction. It required at least one of the 42 executions to record
+  ``redeliveries > 0``, on the reasoning that a clean C1 proves nothing if the matrix
+  never entered the hazard C1 denies. It is **not** part of the frozen artifact set and
+  was never in CLAIMS.md.
+- **07-31.** Cycle 3 ran all 42 executions with **zero apparatus failures** and voided on
+  that rule alone: no execution recorded a re-delivery.
+- **07-31.** Two discharges were collected **before any change was made**: whether the
+  counter can go non-zero in a real run, and on which side the baseline broker
+  duplication arose.
+- **07-31.** The rule was retired, **after the numbers were seen.**
+
+**Pre-registration is no longer available here. Disclosure is.** Without the retirement
+cycle 3 is a third void, the cap is exhausted, and the project ships "the matrix could not
+be completed". With it, the matrix publishes. The change buys a real outcome, so it stands
+on the reasoning below or not at all.
+
+### The reasoning, independent of the outcome
+
+The rule's purpose was non-vacuity. **That property is already guarded, by a gate frozen
+at commit 1 before any infrastructure existed.** CLAIMS.md's C2 is a paired positive
+control over the whole matrix: the same 20 seeded runs under two configurations differing
+only on allow-listed settings under INV-P3, with an explicit consequence if the baseline
+cannot be distinguished from the good configuration. The witness set for a clean C1 is the
+baseline arm, and it was always going to be the baseline arm.
+
+Cycle 3 discharges that control on the evidence: good 0 duplicated and 0 lost across 20
+kill runs, against baseline 7 runs losing and 6 runs duplicating, from identical code under
+identical faults. The witness set is not empty.
+
+What was added on 07-30 was a late, narrower duplicate of a gate that already existed:
+keyed to one mechanism, blind across process restarts because ``last_seen`` is per process
+and so invisible to all 14 consumer-kill executions, and satisfiable only when a
+broker-side race happened to fire. **It is the only rule this project ever had whose
+satisfaction depended on something the harness does not control.** A rule satisfiable only
+by luck is a lottery rather than a gate, and it fails the way PB-T2's sink-ordering test
+would have failed had it been sited where the violation was not observable.
+
+``redeliveries`` remains recorded per execution, as evidence rather than as a rule.
+
+### The discharge evidence, gathered before the change
+
+**The instrument is live.** Two of six baseline verification runs recorded
+``redeliveries=1``, so cycle 3's zero is an observation about cycle 3 rather than a dead
+counter.
+
+**The cycle 3 baseline broker duplication is not an unobserved re-delivery.** Input topic
+600 records and 600 distinct with 0 duplicated; sink 603 with 600 distinct and 3
+duplicated; six of six runs identical, one ``reinit_producer`` on ``_MSG_TIMED_OUT`` each.
+It arose in the process phase's own producer recovery replay: the flush fails mid-outage,
+the contract reinitialises and replays the group, and under the baseline there is no
+transaction to abort, so the first attempt is already durable and the replay makes a second
+copy. ``redeliveries`` counted zero position regressions because there were zero.
+
+The advisor's discharge test asked whether the duplication arose at the ingest producer or
+on the consumer side and treated "not the ingest producer" as proof the counter was blind.
+The real space has a third region, recorded here because the mis-specification is what
+surfaced the rest: the process phase's own recovery replay. The test was mis-specified and
+the counter is not broken.
+
+## 17. C2's floor: the lenient reading, considered and declined
+
+CLAIMS.md C2, verbatim:
+
+> "Floor: if the baseline survives the kills, the harness cannot distinguish
+> configurations, is declared insensitive, and every result ships report-only."
+
+**A lenient reading is available and is recorded here so nobody thinks it was missed.** The
+consequence clause's stated antecedent is that the baseline *survives the kills*. It did
+not survive: it failed in 13 of the 13 runs where failure was structurally possible, while
+the good configuration failed in 0 of 20. The stated rationale, that the harness cannot
+distinguish configurations, is empirically false in this matrix. On the literal words the
+report-only consequence is arguably not triggered, and C2 could ship FAILED as a headline
+without dragging C1 down with it.
+
+**That reading is declined.** C2's numeric claim missed its floor, 7 of 20 against 16, and
+adopting a narrower reading of a frozen floor after seeing a clean C1 is an observation
+moving a pre-registered predicate. This ADR already forbids exactly that: only a proof
+justifies moving a pre-registered predicate, never an observation. The argument above is an
+interpretation that happens to favour the result, not a proof.
+
+**Everything ships report-only.**
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose

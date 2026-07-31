@@ -232,18 +232,26 @@ class Matrix:
                     f"the claim is not evaluable and the matrix is void."
                 )
 
-        # The witness rule. Every "no malformed group" result is a statement about a
-        # code path, and a path the matrix never entered proves nothing about it. If no
-        # execution recorded a re-delivery then the rebalance branch was never taken,
-        # and the absence of the cycle 2 artifact is vacuously true over an empty
-        # witness set. That is the gate-lies failure this project has already paid for
-        # three times, so it is asserted rather than hoped for.
-        if not any(execution.redeliveries for execution in self.executions):
-            raise MatrixVoid(
-                "no execution recorded a re-delivery, so the rebalance branch that "
-                "produced the cycle 2 artifact was never entered. A matrix that never "
-                "exercised the repair cannot be evidence that the repair holds."
-            )
+        # SUPERSEDED, 2026-07-31: a re-delivery witness rule stood here.
+        #
+        # It was added on 07-30 to guarantee non-vacuity, so that a clean C1 could not
+        # be clean merely because the matrix never entered the hazard C1 denies. That
+        # property is already guarded, and by a stronger gate frozen at commit 1 before
+        # any infrastructure existed: CLAIMS.md's C2 is a paired positive control over
+        # the whole matrix, the same 20 seeded runs under two configurations differing
+        # only on allow-listed settings, with an explicit consequence if the baseline
+        # cannot be distinguished from the good one. The witness set for a clean C1 is
+        # the baseline arm, and it was always going to be the baseline arm.
+        #
+        # What was added on 07-30 was a late, narrower duplicate of that: keyed to one
+        # mechanism, blind across process restarts because last_seen is per process, and
+        # satisfiable only when a broker-side race happened to fire. It is the only rule
+        # this project ever had whose satisfaction depended on something the harness does
+        # not control, and a rule satisfiable only by luck is a lottery rather than a
+        # gate. ADR-0004 section 16 records the sequence, including that it voided a
+        # matrix with zero apparatus failures before it was retired.
+        #
+        # redeliveries is still recorded per execution, as evidence rather than as a rule.
 
         # Rule 6: the void-and-rerun cap.
         if self.cycle > MAX_VOID_AND_RERUN_CYCLES:

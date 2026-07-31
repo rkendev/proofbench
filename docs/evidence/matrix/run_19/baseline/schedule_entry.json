@@ -1,0 +1,13 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "control": false,
+  "fault_point": {
+    "saga_index": 145,
+    "step_index": 2
+  },
+  "fault_type": "producer_sigkill_mid_send",
+  "run_id": 19,
+  "sagas": 200,
+  "seed": "54098f62d3aa4e9d",
+  "steps_per_saga": 3
+}

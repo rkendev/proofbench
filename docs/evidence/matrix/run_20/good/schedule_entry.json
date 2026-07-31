@@ -1,0 +1,13 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "control": false,
+  "fault_point": {
+    "saga_index": 95,
+    "step_index": 2
+  },
+  "fault_type": "consumer_sigkill_between_sinks",
+  "run_id": 20,
+  "sagas": 200,
+  "seed": "c3b9bf42317c2aea",
+  "steps_per_saga": 3
+}

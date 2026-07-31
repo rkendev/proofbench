@@ -1,0 +1,12 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "duplicated": 0,
+  "duplicated_records": [],
+  "is_clean": true,
+  "lost": 0,
+  "lost_records": [],
+  "records_sent": 600,
+  "records_visible": 600,
+  "sink": "sink_a",
+  "topic": "proofbench.r07.baseline.sink_a"
+}

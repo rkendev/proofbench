@@ -1,0 +1,10 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "note": "SHA-256 of each ledger's uncompressed JSON, which is the document inside the .json.gz beside it. The digest covers the plain bytes rather than the compressed ones, so any gzip tool reproduces it. The expected ledger is also rebuildable from the run seed and the committed trace, so a reader who trusts neither the author nor this file can regenerate it and check.",
+  "records_per_ledger": 600,
+  "sha256": {
+    "expected_ledger.json": "f07de4f81c0a2ca4393b9517c03888834ea2b13f93381b97511be3f9305ee486",
+    "observed_sink_a.json": "e0e3fe8858747f1b6771cb25a6013b72eb8143a3774d41783b0831abe91dbb99",
+    "observed_sink_b.json": "3ce92d99dd5ebf4920dcf1df7edcb82759b6f1a7800e82669f5b62df1099931c"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "loss_capable_subset": {
+    "attained": 7,
+    "by_fault_type": {
+      "broker_stop_start": {
+        "exhibited_loss": 0,
+        "runs": 6
+      },
+      "consumer_sigkill_between_sinks": {
+        "exhibited_loss": 7,
+        "runs": 7
+      }
+    },
+    "ceiling": 13,
+    "denominator": 13,
+    "figure": "baseline loss rate over the loss-capable subset",
+    "note": "No floor applies to this figure. It is not C2, it is not C2 restricted to a subset, and nothing passes or fails on it. The ceiling is what the frozen schedule permits; the attained figure is what the matrix measured.",
+    "runs_capable_without_loss": [
+      3,
+      6,
+      9,
+      12,
+      15,
+      18
+    ],
+    "runs_exhibiting_loss": [
+      2,
+      5,
+      8,
+      11,
+      14,
+      17,
+      20
+    ],
+    "status": "report-only, not a claim",
+    "threshold": null
+  },
+  "ship_rule": {
+    "c1_failed_means_failed_headline": false,
+    "c2_failed_means_report_only": true,
+    "everything_ships_report_only": true
+  },
+  "verdicts": [
+    {
+      "claim": "C1",
+      "denominator": 20,
+      "duplicated": 0,
+      "floor": "zero duplicated and zero lost across all 20 kill runs under good",
+      "lost": 0,
+      "observed": "0 duplicated, 0 lost across 20 kill runs",
+      "runs_not_clean": [],
+      "verdict": "HOLDS"
+    },
+    {
+      "claim": "C2",
+      "denominator": 20,
+      "floor": "at least 16 of 20 kill runs lose at least one",
+      "observed": "7 of 20 kill runs exhibited loss",
+      "required": 16,
+      "runs_exhibiting_loss": [
+        2,
+        5,
+        8,
+        11,
+        14,
+        17,
+        20
+      ],
+      "verdict": "FAILED"
+    },
+    {
+      "claim": "C3",
+      "denominator": 42,
+      "floor": "every replay rebuilds the sink ledger to the same checksum",
+      "mismatches": [],
+      "observed": "42 of 42 sink replays matched",
+      "runs_excluded": [],
+      "runs_replayed": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20
+      ],
+      "verdict": "HOLDS"
+    }
+  ]
+}

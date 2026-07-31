@@ -170,7 +170,7 @@ make control-run                                      # the no-fault control, bo
 make broker-down                                      # deliberate reset, removes the log
 ```
 
-`make run-matrix` exits 2. The fault injector, the 20 kill runs, and the evidence
+See [`docs/MATRIX.md`](docs/MATRIX.md) for the failure-evidence matrix.
 matrix are the next piece of work.
 
 ## Layout

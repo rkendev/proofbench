@@ -1,0 +1,118 @@
+{
+  "artifact": "apparatus check, not a claim result",
+  "duplicated": 0,
+  "duplicated_records": [],
+  "is_clean": false,
+  "lost": 15,
+  "lost_records": [
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0095:create_ticket",
+      "payload_checksum": "dff13f0b575edb4eaef2bbf192325de471a7069e7da769619f34960bb485cc63",
+      "saga_id": "c3b9bf42317c2aea-0095",
+      "sequence": 285,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0095:charge_card",
+      "payload_checksum": "a69751278daac1b0591821d0a056914702ac86ec5f01fc9170ff9be0226fd790",
+      "saga_id": "c3b9bf42317c2aea-0095",
+      "sequence": 286,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0095:send_confirmation",
+      "payload_checksum": "cd282e5751f06fb947b125a30d7c1e063d841562fdc8bf1acb343e4dad3bfbf7",
+      "saga_id": "c3b9bf42317c2aea-0095",
+      "sequence": 287,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0096:create_ticket",
+      "payload_checksum": "20980f4acdf56ecf4ed7a28ee58cc1bdaa0d237c98e481c0d2c5893e11ebcbb9",
+      "saga_id": "c3b9bf42317c2aea-0096",
+      "sequence": 288,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0096:charge_card",
+      "payload_checksum": "64ee3c2542029b38dd2c100cf6f17ab5888c6cd60bf1f9404a2dec09302a36a9",
+      "saga_id": "c3b9bf42317c2aea-0096",
+      "sequence": 289,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0096:send_confirmation",
+      "payload_checksum": "8e6e82f0c907e278bfa6b3fdb1bae74746e99731ba1e0b3ec02a8f42f1d0628a",
+      "saga_id": "c3b9bf42317c2aea-0096",
+      "sequence": 290,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0097:create_ticket",
+      "payload_checksum": "da494f5d3b0e55b49f5796b740dee1f9793cb9930e9adee5349f18fa2736c7be",
+      "saga_id": "c3b9bf42317c2aea-0097",
+      "sequence": 291,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0097:charge_card",
+      "payload_checksum": "5084e4f9a4ce320411f32bdf15a8a75ebf418fe222ed73015b990502c4dab1ce",
+      "saga_id": "c3b9bf42317c2aea-0097",
+      "sequence": 292,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0097:send_confirmation",
+      "payload_checksum": "e871f7417dae956b89ec3f62093bb56b7651cbe666f370e2d7658168d4b5f31d",
+      "saga_id": "c3b9bf42317c2aea-0097",
+      "sequence": 293,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0098:create_ticket",
+      "payload_checksum": "45e421d5e984dbe682720eadd9ad8a26eae9eb85c59b318dd16dbe0e24608048",
+      "saga_id": "c3b9bf42317c2aea-0098",
+      "sequence": 294,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0098:charge_card",
+      "payload_checksum": "c43bc1777c44c2e601eb0fdbf0fad4aaf87f936975f87837a31dc8c9a903383c",
+      "saga_id": "c3b9bf42317c2aea-0098",
+      "sequence": 295,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0098:send_confirmation",
+      "payload_checksum": "e92ac2e2cad557ad3bf2c231df082ce9a93ed7a772050c8e1fb5edf4f543b4fb",
+      "saga_id": "c3b9bf42317c2aea-0098",
+      "sequence": 296,
+      "step_name": "send_confirmation"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0099:create_ticket",
+      "payload_checksum": "6ebeabd0b5eb5cf15c4bcd385f2be999086fe3de6fbcd4e4357dba0534d2c824",
+      "saga_id": "c3b9bf42317c2aea-0099",
+      "sequence": 297,
+      "step_name": "create_ticket"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0099:charge_card",
+      "payload_checksum": "cc3d0cab03d1d60cf988a095d758f43dacb3ea603fea8ce2da18225cc3ff748e",
+      "saga_id": "c3b9bf42317c2aea-0099",
+      "sequence": 298,
+      "step_name": "charge_card"
+    },
+    {
+      "idempotency_key": "c3b9bf42317c2aea-0099:send_confirmation",
+      "payload_checksum": "d3534c15df62758f6042d4018edb8ee76e6ff5318e5f23346295c56dc0a9f931",
+      "saga_id": "c3b9bf42317c2aea-0099",
+      "sequence": 299,
+      "step_name": "send_confirmation"
+    }
+  ],
+  "records_sent": 585,
+  "records_visible": 585,
+  "sink": "sink_b",
+  "topic": "proofbench.r20.baseline.sink_b"
+}

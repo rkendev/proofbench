@@ -117,6 +117,10 @@ class Execution:
     offset_gaps: list[list[int]] = field(default_factory=list)
     records_in_gaps: int = 0
     attempts: int = 1
+    # How many times a partition's position moved backwards, i.e. a rebalance
+    # re-delivered records. The matrix asserts at least one run saw this, or the
+    # re-delivery fix was never exercised and 'no malformed groups' is vacuous.
+    redeliveries: int = 0
     diagnosis: str = ""
 
     @property
@@ -147,6 +151,7 @@ class Execution:
                 round(self.lost / self.records_in_gaps, 3) if self.records_in_gaps else None
             ),
             "attempts": self.attempts,
+            "redeliveries": self.redeliveries,
             "diagnosis": self.diagnosis,
         }
 
@@ -226,6 +231,19 @@ class Matrix:
                     f"against a floor written for 20 is cherry-picking by another route, so "
                     f"the claim is not evaluable and the matrix is void."
                 )
+
+        # The witness rule. Every "no malformed group" result is a statement about a
+        # code path, and a path the matrix never entered proves nothing about it. If no
+        # execution recorded a re-delivery then the rebalance branch was never taken,
+        # and the absence of the cycle 2 artifact is vacuously true over an empty
+        # witness set. That is the gate-lies failure this project has already paid for
+        # three times, so it is asserted rather than hoped for.
+        if not any(execution.redeliveries for execution in self.executions):
+            raise MatrixVoid(
+                "no execution recorded a re-delivery, so the rebalance branch that "
+                "produced the cycle 2 artifact was never entered. A matrix that never "
+                "exercised the repair cannot be evidence that the repair holds."
+            )
 
         # Rule 6: the void-and-rerun cap.
         if self.cycle > MAX_VOID_AND_RERUN_CYCLES:

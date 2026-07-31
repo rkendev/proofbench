@@ -174,6 +174,7 @@ def main(argv: list[str] | None = None) -> int:
                 window=state,
                 progress=record_progress,
             )
+            state.redeliveries += int(stats.get("redeliveries", 0))
             failed: list[str] = list(stats.get("permanently_failed_keys", []))
             state.permanently_failed_keys = sorted(set(state.permanently_failed_keys) | set(failed))
             resumed_at = (

@@ -285,6 +285,7 @@ def _execute(run_id: int, configuration: str, settings: Settings, ordinal: int) 
         offset_gaps=[[start, end] for start, end in gaps],
         records_in_gaps=sum(end - start for start, end in gaps),
         attempts=len(state.attempts_for(PHASE_PROCESS)),
+        redeliveries=state.redeliveries,
     )
 
 

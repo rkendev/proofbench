@@ -142,6 +142,12 @@ class RunState:
     # verifies the sinks.
     permanently_failed_keys: list[str] = field(default_factory=list)
 
+    # How many times a partition's position moved backwards during the process phase,
+    # i.e. how often a rebalance re-delivered records. Durable because the phase that
+    # counts it is a different process from the one that assembles the matrix, and the
+    # matrix asserts at least one execution saw a non-zero count.
+    redeliveries: int = 0
+
     @property
     def fault_has_fired(self) -> bool:
         return self.fault_fired
@@ -245,6 +251,7 @@ class RunState:
             },
             "attempts": [attempt.to_jsonable() for attempt in self.attempts],
             "permanently_failed_keys": sorted(self.permanently_failed_keys),
+            "redeliveries": self.redeliveries,
             "recovery": self.budget.to_jsonable(),
             "transactions": self.transactions.to_jsonable(),
         }
@@ -273,6 +280,7 @@ class RunState:
             fault_fired_twice=bool(fault.get("fired_twice", False)),
             entry_names_a_fault=bool(payload.get("entry_names_a_fault", False)),
             permanently_failed_keys=list(payload.get("permanently_failed_keys", [])),
+            redeliveries=int(payload.get("redeliveries", 0)),
         )
 
     def save(self, path: Path) -> None:

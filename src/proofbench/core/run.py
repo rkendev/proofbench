@@ -675,10 +675,18 @@ def process(
     # back as one record would have a one-record commit-ahead window and would look
     # exactly like a run with the constant wired up. Measured, not assumed.
     largest_batch = 0
-    # The highest input offset handed to this phase, and how many times the
-    # consumer's position moved backwards. A backwards move is a rebalance
+    # The highest offset handed to this phase PER PARTITION, and how many times a
+    # partition's position moved backwards. A backwards move is a rebalance
     # re-delivering records, which is evidence about the run and is recorded.
-    last_seen_offset: int | None = None
+    #
+    # Keyed by (topic, partition) rather than held as one scalar. Offsets are per
+    # partition and independent, so a single counter would read interleaved records from
+    # two partitions as a position regression and discard healthy groups on a stream with
+    # no fault in it at all: the dropping hazard firing on the clean path, in both
+    # configurations. The harness provisions one partition per topic today, so a scalar
+    # would happen to work, but this removes the need to prove that assumption rather
+    # than restating it in a comment.
+    last_seen: dict[tuple[str, int], int] = {}
     redeliveries = 0
     # Idempotency keys whose delivery failed permanently INSIDE an open fault window.
     permanently_failed: set[str] = set()
@@ -957,8 +965,10 @@ def process(
                         break
                     raise ApparatusFailure(f"consuming the input topic failed: {error}")
 
+                position = (str(message.topic()), int(message.partition()))
                 offset = int(message.offset())
-                if last_seen_offset is not None and offset <= last_seen_offset:
+                previous = last_seen.get(position)
+                if previous is not None and offset <= previous:
                     # The consumer's position moved BACKWARDS, which means a rebalance
                     # reset it to the last committed offset and Kafka is re-delivering
                     # records this phase has already buffered.
@@ -979,7 +989,7 @@ def process(
                     buffered = []
                     buffered_saga = None
                     buffered_index = None
-                last_seen_offset = offset
+                last_seen[position] = offset
 
                 if resumed_at is None:
                     # Where Kafka's own mechanism put us. ADR-0003 section 7 forbids

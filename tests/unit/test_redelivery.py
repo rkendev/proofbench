@@ -31,22 +31,24 @@ def _process_source() -> str:
     return inspect.getsource(run.process)
 
 
-def _replay(offsets: list[int]) -> tuple[list[str], int]:
-    """The rule the loop applies, over a sequence of delivered offsets.
+def _replay(offsets: list[int], partitions: list[int] | None = None) -> tuple[list[str], int]:
+    """The rule the loop applies, over a sequence of delivered (partition, offset) pairs.
 
-    Returns the keys that ended up buffered for the final saga, and how many backwards
-    moves were seen. Mirrors the loop; a call-site test below pins that the real one
-    behaves this way.
+    Returns the keys that ended up buffered, and how many backwards moves were seen.
+    Mirrors the loop; call-site tests below pin that the real one behaves this way.
     """
+    parts = partitions if partitions is not None else [0] * len(offsets)
     buffered: list[str] = []
-    last_seen: int | None = None
+    last_seen: dict[tuple[str, int], int] = {}
     redeliveries = 0
-    for offset in offsets:
-        if last_seen is not None and offset <= last_seen:
+    for offset, partition in zip(offsets, parts, strict=True):
+        position = ("t", partition)
+        previous = last_seen.get(position)
+        if previous is not None and offset <= previous:
             redeliveries += 1
             buffered = []
-        last_seen = offset
-        buffered.append(f"key@{offset}")
+        last_seen[position] = offset
+        buffered.append(f"key@{partition}:{offset}")
     return buffered, redeliveries
 
 
@@ -63,7 +65,7 @@ def test_a_redelivered_record_does_not_join_a_group_that_already_holds_it() -> N
     """
     buffered, redeliveries = _replay([663, 664, 665, 664, 665])
     assert redeliveries == 1
-    assert buffered == ["key@664", "key@665"], (
+    assert buffered == ["key@0:664", "key@0:665"], (
         "the re-delivered records were appended to a buffer that already held them"
     )
     assert len(buffered) <= 3
@@ -72,7 +74,7 @@ def test_a_redelivered_record_does_not_join_a_group_that_already_holds_it() -> N
 def test_the_partial_group_is_discarded_not_extended() -> None:
     """Extending it is what produced n=5. Discarding is the only safe response."""
     buffered, _ = _replay([100, 101, 100])
-    assert buffered == ["key@100"]
+    assert buffered == ["key@0:100"]
 
 
 # --------------------------------------------------------------------------
@@ -92,8 +94,7 @@ def test_discarding_the_partial_group_loses_nothing() -> None:
     buffered, redeliveries = _replay(delivered)
     assert redeliveries == 1
     # Everything that was in the discarded group came back.
-    assert {"key@663", "key@664", "key@665"} <= set(buffered) | {"key@666"}
-    assert buffered == ["key@663", "key@664", "key@665", "key@666"]
+    assert buffered == ["key@0:663", "key@0:664", "key@0:665", "key@0:666"]
 
 
 def test_a_forward_only_stream_is_never_reset() -> None:
@@ -112,10 +113,39 @@ def test_a_forward_only_stream_is_never_reset() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_the_loop_detects_a_backwards_position() -> None:
+def test_interleaved_partitions_are_not_mistaken_for_a_regression() -> None:
+    """The position state is per partition, so independent sequences cannot collide.
+
+    One scalar would read a record from partition 1 at offset 5, arriving after
+    partition 0 reached offset 900, as a backwards move and discard a healthy group.
+    That is the dropping hazard firing on the CLEAN path, with no fault injected, in
+    both configurations, and it would void a matrix by itself.
+
+    The harness provisions one partition per topic today, so a scalar would happen to
+    work. This removes the need to prove that assumption rather than restating it.
+    """
+    buffered, redeliveries = _replay([100, 5, 101, 6, 102], partitions=[0, 1, 0, 1, 0])
+    assert redeliveries == 0, (
+        "interleaved offsets from independent partitions were read as a position "
+        "regression, so a healthy group would be discarded on a stream with no fault"
+    )
+    assert len(buffered) == 5
+
+
+def test_a_regression_within_one_partition_is_still_caught() -> None:
+    """Per-partition keying must not weaken the detection it exists to make correct."""
+    buffered, redeliveries = _replay([100, 5, 100, 6], partitions=[0, 1, 0, 1])
+    assert redeliveries == 1
+
+
+def test_the_loop_detects_a_backwards_position_per_partition() -> None:
     source = _process_source()
-    assert "last_seen_offset" in source
-    assert "offset <= last_seen_offset" in source
+    assert "last_seen" in source
+    assert "offset <= previous" in source
+    assert "message.partition()" in source, (
+        "the position state is not keyed by partition, so offsets from independent "
+        "sequences are compared against each other"
+    )
 
 
 def test_the_reset_clears_the_group_rather_than_trimming_it() -> None:
@@ -125,7 +155,7 @@ def test_the_reset_clears_the_group_rather_than_trimming_it() -> None:
         node
         for node in ast.walk(tree)
         if isinstance(node, ast.If)
-        and "last_seen_offset" in ast.unparse(node.test)
+        and "previous" in ast.unparse(node.test)
         and "buffered = []" in ast.unparse(node)
     ]
     assert resets, "the backwards-position branch does not clear the buffered group"

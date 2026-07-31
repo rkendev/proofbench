@@ -44,6 +44,7 @@ def _execution(
     is_control=False,
     fault_type="consumer_sigkill_between_sinks",
     loss_possible=True,
+    redeliveries=0,
 ):
     return Execution(
         run_id=run_id,
@@ -58,6 +59,7 @@ def _execution(
         transactions_aborted=0,
         max_open_transaction_ms=53.0,
         recovery={},
+        redeliveries=redeliveries,
     )
 
 
@@ -81,6 +83,9 @@ def _matrix(good_lost=0, baseline_loss_runs=0, capable=20):
                     if is_capable
                     else "producer_sigkill_mid_send",
                     loss_possible=is_capable,
+                    # One witness, so the matrix satisfies the rule that the rebalance
+                    # branch was actually entered.
+                    redeliveries=1 if run_id == 3 else 0,
                 )
             )
     return Matrix(executions=executions)

@@ -37,6 +37,7 @@ def _execution(
     is_control: bool = False,
     lost: int = 0,
     diagnosis: str = "",
+    redeliveries: int = 0,
 ) -> Execution:
     return Execution(
         run_id=run_id,
@@ -52,6 +53,7 @@ def _execution(
         max_open_transaction_ms=53.0,
         recovery={},
         diagnosis=diagnosis,
+        redeliveries=redeliveries,
     )
 
 
@@ -61,7 +63,10 @@ def _whole_matrix(**overrides: Any) -> Matrix:
     for configuration in ("good", "baseline"):
         executions.append(_execution(0, configuration, is_control=True))
         for run_id in range(1, 21):
-            executions.append(_execution(run_id, configuration))
+            # One kill run witnesses a re-delivery, as a real matrix does.
+            executions.append(
+                _execution(run_id, configuration, redeliveries=1 if run_id == 3 else 0)
+            )
     return Matrix(executions=executions, **overrides)
 
 
@@ -292,3 +297,46 @@ def test_the_predicate_is_not_uniformly_true_or_false() -> None:
     assert capable, "the predicate says no run can lose, so the ceiling is meaningless"
     assert incapable, "the predicate says every run can lose, so it is not discriminating"
     assert len(capable) + len(incapable) == 20
+
+
+# --------------------------------------------------------------------------
+# The witness rule: the repair must actually have been exercised
+# --------------------------------------------------------------------------
+
+
+def test_a_matrix_that_never_re_delivered_is_refused() -> None:
+    """ "No malformed groups" over a path never entered proves nothing.
+
+    Every clean result is a statement about a code path. If no execution recorded a
+    re-delivery then the rebalance branch that produced the cycle 2 artifact was never
+    taken, and the absence of the artifact is vacuously true over an empty witness set.
+    That is the gate-lies failure this project has paid for three times.
+
+    The named red-proof is the control run: no fault is injected there, so its count
+    must be zero, and a matrix of control runs alone must be refused.
+    """
+    matrix = _whole_matrix()
+    for index, execution in enumerate(matrix.executions):
+        matrix.executions[index] = _execution(
+            execution.run_id,
+            execution.configuration,
+            is_control=execution.is_control,
+            redeliveries=0,
+        )
+    with pytest.raises(MatrixVoid, match="never entered"):
+        matrix.assert_shippable()
+
+
+def test_a_control_run_is_expected_to_record_no_re_delivery() -> None:
+    """Nothing is killed, nothing rebalances, so the count is zero and must be.
+
+    A non-zero count on the control would mean the consumer rebalanced on a run with no
+    fault, which is an apparatus condition rather than a measurement.
+    """
+    control = _execution(0, "good", is_control=True)
+    assert control.redeliveries == 0
+
+
+def test_one_witness_is_enough() -> None:
+    """The rule asks whether the path was entered, not how often."""
+    _whole_matrix().assert_shippable()

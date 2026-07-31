@@ -634,6 +634,77 @@ Enforced by `tests/unit/test_call_sites.py`, which walks every invariant the rep
 relies on and asserts its call site exists as a Call node in the module that should
 invoke it.
 
+---
+
+## 14. The cycle 2 mechanism, and the magnitude change it may cause
+
+**Written before cycle 3 runs.** The discard can change how much the baseline loses
+relative to what cycles 1 and 2 showed, so what that change means is fixed here rather
+than explained afterwards.
+
+### The mechanism, observed rather than inferred
+
+Located by instrumenting every append to ``buffered`` and capturing the call stack, after
+two hypothesis-driven repairs had failed. The stack named the ordinary batch loop, not any
+recovery function:
+
+    DUP-APPEND key=...-0166:create_ticket
+      buffered_before=['...-0166:create_ticket', '...-0166:charge_card']
+      offset=664 saga_idx=166
+
+The consumer rejoined its group after the broker restart, resumed from the last committed
+offset, and Kafka re-delivered offsets 664 and 665 while ``buffered`` still held exactly
+those two records. The loop appended them again and the saga went out as a five-record
+group, in the observed order. Neither the rejoin queue nor the rejoin poll caused it, which
+is why removing both changed nothing.
+
+Classified against the criterion in section 11, written blind: **apparatus artifact**. It
+satisfies two artifact criteria directly, a malformed group and the same records appearing
+in ``buffered`` more than once at an append, both observed. Had it fallen on the genuine
+side the criterion would have bound and C1 would ship FAILED.
+
+### Why the discard is a validity repair
+
+ADR-0003 section 7 fixes the resume contract as resuming at the first saga not known to be
+durably complete, never replaying from the start of the run, and never skipping unrecorded
+work. **Retaining a partial group across a position regression writes work the resume point
+has already passed.** The repair moves the code toward what was already frozen; it does not
+move a declaration toward a wanted result.
+
+### The magnitude change, pre-registered
+
+Without the discard, a stale partial group would be written on the next ``write_group``,
+which **silently repairs a loss the baseline is supposed to exhibit**. The baseline's loss
+count in cycle 3 can therefore legitimately be higher than in cycle 2.
+
+**No pre-registered claim depends on the magnitude.** C2 fails on the structural ceiling of
+13 against a floor of 16, which no fix to the consumer loop can move: the ceiling comes from
+the ingest resume rule, not from the process phase. The loss-capable-subset figure carries
+``threshold: None`` and is not a claim.
+
+**Therefore a higher baseline loss count in cycle 3 than in cycle 2 is expected, is not
+evidence of a regression, and is not evidence of anything else either.** It is recorded here
+before the run so that it reads as pre-registration rather than as an explanation.
+
+### The witness rule
+
+``redeliveries`` is recorded per execution, and the matrix now refuses to ship unless at
+least one execution recorded a non-zero count. Every "no malformed group" result is a
+statement about a code path, and a path the matrix never entered proves nothing about it: if
+no run re-delivered, the rebalance branch was never taken and the absence of the artifact is
+vacuously true over an empty witness set. That is the gate-lies failure this project has
+already paid for three times. Proven red against the control runs, where no fault is injected
+and the count must be zero.
+
+### The position state is keyed by partition
+
+``last_seen`` is a mapping from ``(topic, partition)`` to offset, not a single scalar.
+Offsets are per partition and independent, so one counter would read interleaved records from
+two partitions as a position regression and discard healthy groups on a stream with no fault
+in it: the dropping hazard firing on the clean path, in both configurations. The harness
+provisions one partition per topic today, so a scalar would happen to work; keying by
+partition removes the need to prove that assumption rather than restating it in a comment.
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose

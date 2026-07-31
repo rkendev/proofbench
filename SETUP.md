@@ -110,9 +110,17 @@ transactional producer id, `Not coordinator` and `Coordinator load in progress`,
 followed by `retrying`. That is the transaction coordinator still starting up. The
 client rides it out on its own and the run succeeds; no action is needed.
 
-## Targets that are deliberately not implemented yet
+## Running the matrix
 
-`make run-matrix` prints a deferral note and exits non-zero. The fault injector, the
-20 kill runs, and the evidence matrix are the next piece of work. It exits non-zero
-rather than printing and succeeding so that a stub can never be chained into something
-that then reports success.
+```
+make run-matrix        # 42 executions, strictly sequential, about 30 minutes
+make replay            # C3 over every scoreable good run
+make evaluate-claims   # C1, C2 and C3 from the committed matrix
+```
+
+`run-matrix` exits 3 when the matrix is void under a pre-registered validity rule, which
+is a different thing from a claim failing and must not be chained into anything that then
+reports a result. Never run in parallel: `broker_stop_start` takes down the shared broker,
+so a concurrent execution would meet an outage nobody scheduled for it.
+
+Measured: 42 executions in 29.0 minutes, plus about 4 minutes for the C3 replays.

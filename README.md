@@ -16,35 +16,83 @@ configuration.
 The harness and its failure-evidence matrix are the product. This is not an ingest
 pipeline, not a dashboard, and not a cloud deployment.
 
-## There are no claim results yet
+## Every result ships REPORT-ONLY
 
-No claim has been measured. No fault has been injected, none of the 20 kill runs has
-been executed, and C1, C2, and C3 have not been evaluated. What exists today is the
-pre-registered contract, the frozen run schedule and workload, the measurement
-invariants, the two configurations under test, the harness that runs them, and the
-gates that hold all of it in place.
+**C2, the pre-registered sensitivity gate, did not meet its floor, so every result in this
+repository ships report-only.** `CLAIMS.md` fixed that consequence before the first broker
+boot: "the harness cannot distinguish configurations, is declared insensitive, and every
+result ships report-only." It applies to the clean C1 below as much as to anything else,
+and it is stated here before any number because that is what the floor requires.
 
-This section gets replaced by the evidence matrix when there is one, whichever way the
-claims land.
+### C2: FAILED, and the failure was predicted in writing before the matrix ran
 
-### One number exists, and it is an apparatus check
+Loss in **7 of 20** kill runs against a floor of 16.
 
-`run_id` 0 of the schedule is a no-fault control. It has been run under both
-configurations with **no fault injected**, and it reports zero duplicated and zero
-lost side effects across 600 expected records, in both sinks, under both
-configurations. The evidence is committed in
-[`docs/evidence/control-run/`](docs/evidence/control-run/).
+[ADR-0004](adr/0004-fault-injection-and-the-matrix.md) recorded, **before any execution**,
+that C2 could not reach its floor. The ingest resume rule frozen in
+[ADR-0003](adr/0003-workload-sinks-and-configurations.md) section 7 makes the ingest phase
+incapable of losing a side effect, so the 7 `producer_sigkill_mid_send` runs cannot
+contribute loss and the maximum attainable numerator is **13 against a floor of 16**. The
+ceiling is computed from the committed schedule by `matrix.loss_structurally_possible`, not
+typed, and the matrix carries it as a column so a reader can check the arithmetic.
 
-**What it shows:** that the harness reports zero when nothing was killed. Every gate
-here has been demonstrated failing against a seeded violation, which shows a gate
-fires when it should; the control is the missing half, showing the apparatus does not
-fire when it should not. It was run before a fault injector existed on purpose,
-because doing it the other way round would leave every later number open to the
-objection that the apparatus was adjusted once its answers were visible.
+The finding, stated precisely because the precision is the value: **C2 did not fail because
+the harness could not distinguish the configurations.** It failed because the
+pre-registered denominator included 7 runs in which loss is structurally impossible under a
+resume contract chosen later but still blind. `CLAIMS.md` was not reinterpreted to rescue
+it.
 
-**What it does not show:** anything about C1, C2, or C3. Nothing was killed, so it
-says nothing about behaviour under kill. It is a precondition for trusting a later
-result, not a contribution to one, and it is never described as evidence for a claim.
+### C1: 0 duplicated, 0 lost across 20 kill runs, report-only
+
+Measured across 42 executions with zero apparatus failures. **Two honest limits, named
+rather than buried:**
+
+- **It measures exactly-once WITHIN Kafka.** The input topic, both sinks and the consumer
+  offsets are all Kafka resources, so one transaction covers them. ADR-0003 section 2: a C1
+  pass here is **not** evidence that an agent's real side effects are safe under the same
+  configuration. A payment API or an email send cannot join a Kafka transaction.
+- **In these 42 executions the consumer never experienced a re-delivery.** Every execution
+  recorded `redeliveries = 0`. Duplicate-delivery recovery is therefore covered by forced
+  deterministic tests, not by the scored matrix.
+
+Also limiting: single-node KRaft, so broker faults are stop and start outages and ISR
+failover is out of scope; and the baseline's commit timer is given one full opportunity to
+fire at the seeded fault point, so the measured claim is "commit-before-processing loses
+side effects when the commit has had one opportunity to fire", not "under a realistic
+production cadence".
+
+### C3: 42 of 42 sink replays matched, report-only
+
+Every one of the 21 good-configuration runs replayed, none excluded. Raw topic bytes cannot
+match a replay, since offsets, timestamps and producer epochs are broker-assigned, so the
+checksum is over the canonical serialization of the rebuilt effect ledger.
+
+### The cleanest contrast in the project
+
+Six `broker_stop_start` runs per configuration. **Identical code, identical recovery path**,
+one `reinit_producer` on `_MSG_TIMED_OUT` in each.
+
+| configuration | duplicated | why |
+| --- | --- | --- |
+| baseline | **3, in all six** | no transaction to abort, so the first attempt is already durable and the replay makes a second copy |
+| good | **0, in all six** | the aborted transaction makes the first attempt invisible |
+
+Six of six, deterministic, not a race. That is `enable.idempotence` and `transactional.id`
+doing exactly what `CLAIMS.md` says they do, with everything else held identical by INV-P3.
+
+**The full matrix is in [`docs/MATRIX.md`](docs/MATRIX.md)**, with every ledger committed
+gzipped and digested so a reader who trusts neither the author nor the files can regenerate
+the expected ledger from the seed and check.
+
+### What it cost to get an honest number
+
+Three matrix cycles were permitted and two were voided, both recorded in ADR-0004 rather
+than quietly re-run. Cycle 1 voided on four apparatus failures. Cycle 2 ran clean and was
+voided anyway, because the harness had manufactured a duplication and reported it as C1
+FAILED: the cycle 1 repair had fixed one artifact and created another. The mechanism was
+found by instrumentation after two hypothesis-driven repairs failed, and the criterion for
+telling a genuine C1 failure from an apparatus artifact was written down **before** the
+mechanism was located, so it could not be shaped around it.
 
 ## The claims are pre-registered
 
@@ -180,6 +228,8 @@ matrix are the next piece of work.
 | `CLAIMS.md` | The pre-registered contract. Frozen. |
 | `docs/run_schedule.json` | The frozen 21-run schedule. |
 | `docs/agent_trace.json` | The frozen agent tool-call trace. |
+| `docs/MATRIX.md` | The failure-evidence matrix. The product. |
+| `docs/evidence/matrix/` | All 42 executions, ledgers gzipped with digests. |
 | `docs/evidence/control-run/` | The control run's evidence. An apparatus check, not a claim result. |
 | `src/proofbench/config.py` | Single authority for every connection detail and frozen constant. |
 | `src/proofbench/core/schedule.py` | The pure deterministic schedule generator. |
@@ -188,6 +238,9 @@ matrix are the next piece of work.
 | `src/proofbench/core/ledger_diff.py` | The INV-P2 differ. |
 | `src/proofbench/core/recovery.py` | The frozen recovery and resume contracts. |
 | `src/proofbench/core/run.py` | The run driver: ingest, process, verify, diff. |
+| `src/proofbench/core/faults.py` | The fault injector, armed once, and the sole `os.kill` site. |
+| `src/proofbench/core/matrix.py` | The matrix, its validity rules, and the loss-possibility predicate. |
+| `src/proofbench/core/claims.py` | C1, C2 and C3 against the frozen floors. |
 | `src/proofbench/interfaces/ledger.py` | The INV-P2 diff interface. |
 | `adr/` | Architecture decision records. |
 | `tests/hygiene/`, `tests/portability/` | The gates, each with a seeded violation. |

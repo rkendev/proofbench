@@ -705,6 +705,34 @@ in it: the dropping hazard firing on the clean path, in both configurations. The
 provisions one partition per topic today, so a scalar would happen to work; keying by
 partition removes the need to prove that assumption rather than restating it in a comment.
 
+### D2: the fix verified under the baseline configuration
+
+The earlier verification covered the good configuration only, and the dropping argument
+depends on the committed offset sitting on a group boundary, which is true when offsets
+travel inside the transaction and is not established when they are committed on a timer.
+Six runs of the seeded broker fault under the baseline, from the diagnostic budget:
+
+| runs | redeliveries | duplicated | lost | status |
+| --- | --- | --- | --- | --- |
+| 4 | 0 | 3 | 0 | not_clean |
+| 2 | 1 | 197 | 0 | not_clean |
+
+**No apparatus failure, so the group-shape invariant stayed green under the baseline,
+including on both runs that entered the rebalance branch.** No discarded offset failed to
+re-arrive: ``lost`` is zero in every run, including the two that discarded a partial group.
+The dropping hazard did not fire.
+
+The 197 duplicated records on a re-delivery run are the baseline behaving as the baseline.
+It commits offsets on a timer rather than inside a transaction, so its committed offset sits
+well behind applied work; a rebalance resumes there and every record between is written to
+the sinks a second time, with no transaction to abort and no idempotence to suppress it.
+That is commit-before-processing producing duplication rather than loss, by the same
+mechanism section 15 describes for the broker runs.
+
+**No claim depends on it.** C1 is about the good configuration. C2 counts runs that lose at
+least one side effect, and these lost none. The figure is recorded because it is evidence
+about the apparatus, not because anything is scored on it.
+
 ## Reopen trigger
 
 Section 8's ceiling reopens only on a **proof** that the broker runs cannot lose
